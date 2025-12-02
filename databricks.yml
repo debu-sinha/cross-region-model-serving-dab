@@ -81,10 +81,10 @@ variables:
 artifacts:
   default:
     type: whl
-    build: python3 setup.py bdist_wheel
+    build: python setup.py bdist_wheel
     path: .
     files:
-      - source: dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+      - source: dist/*.whl
 
 include:
   - resources/*.yml

@@ -1,0 +1,99 @@
+resources:
+  jobs:
+    cross_region_model_share_job:
+      name: Cross Region Model Share Job
+      job_clusters:
+        - job_cluster_key: common_cluster
+          new_cluster:
+            spark_version: 16.4.x-cpu-ml-scala2.12
+            node_type_id: i3.xlarge
+            num_workers: 1
+            # For AWS, use: i3.xlarge or m5.xlarge
+            # For Azure, Standard_DS3_v2 is common
+            # For GCP, n1-standard-4
+
+      tasks:
+        - task_key: demo_setup
+          job_cluster_key: common_cluster
+          python_wheel_task:
+            package_name: cross_region_model_serving
+            entry_point: demo_setup
+            parameters:
+              - "--model_name"
+              - "${var.model_name}"
+              - "--table"
+              - "demo_features"
+              - "--create_online_table"
+              - "true"
+          libraries:
+            - whl: ../dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+
+
+
+        - task_key: source_share_setup
+          depends_on:
+            - task_key: demo_setup
+          job_cluster_key: common_cluster
+          python_wheel_task:
+            package_name: cross_region_model_serving
+            entry_point: main
+            parameters:
+              - "--mode"
+              - "source"
+              - "--model_name"
+              - "${var.model_name}"
+              - "--share_name"
+              - "${var.share_name}"
+              - "--recipient_name"
+              - "${var.recipient_name}"
+              - "--create_recipient"
+              - "${var.create_recipient}"
+              - "--target_host"
+              - "{{secrets/${var.secret_scope}/host}}"
+              - "--target_token"
+              - "{{secrets/${var.secret_scope}/token}}"
+          libraries:
+            - whl: ../dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+
+
+
+        - task_key: target_registration_setup
+          depends_on:
+            - task_key: source_share_setup
+          job_cluster_key: common_cluster
+          python_wheel_task:
+            package_name: cross_region_model_serving
+            entry_point: main
+            parameters:
+              - "--mode"
+              - "target"
+              - "--share_name"
+              - "${var.share_name}"
+              - "--provider_name"
+              - "${var.provider_name}"
+              - "--target_catalog"
+              - "${var.target_catalog}"
+              - "--target_host"
+              - "{{secrets/${var.secret_scope}/host}}"
+              - "--target_token"
+              - "{{secrets/${var.secret_scope}/token}}"
+              - "--deploy_serving"
+              - "${var.deploy_serving}"
+              - "--serving_endpoint_name"
+              - "${var.serving_endpoint_name}"
+              - "--create_online_table"
+              - "${var.create_online_table}"
+              - "--online_store_name"
+              - "${var.online_store_name}"
+              - "--create_online_store"
+              - "${var.create_online_store}"
+              - "--online_table_target_catalog"
+              - "${var.online_table_target_catalog}"
+              - "--online_table_target_schema"
+              - "${var.online_table_target_schema}"
+              - "--use_existing_catalog"
+              - "${var.use_existing_catalog}"
+          libraries:
+            - whl: ../dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+
+

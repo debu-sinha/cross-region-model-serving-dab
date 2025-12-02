@@ -1,0 +1,113 @@
+bundle:
+  name: cross-region-model-serving
+
+variables:
+  # ===========================================
+  # SECRET SCOPE FOR CROSS-WORKSPACE CREDENTIALS
+  # ===========================================
+  secret_scope:
+    description: The secret scope containing target workspace credentials (host and token keys)
+    default: my_cross_region_secrets
+
+  # ===========================================
+  # SOURCE WORKSPACE CONFIGURATION
+  # ===========================================
+  model_name:
+    description: The full name of the model to share (catalog.schema.model)
+    default: main.default.model_${workspace.current_user.short_name}
+  share_name:
+    description: The name of the Delta Share to create/use
+    default: share_${workspace.current_user.short_name}
+  recipient_name:
+    description: The name of the recipient (ignored if sharing to same metastore - uses 'self')
+    default: recipient_${workspace.current_user.short_name}
+  create_recipient:
+    description: Whether to create the recipient if it doesn't exist (true/false)
+    default: "true"
+
+  # ===========================================
+  # TARGET WORKSPACE CONFIGURATION
+  # ===========================================
+  provider_name:
+    description: The name of the provider (use 'self' for same-metastore sharing)
+    default: self
+  target_catalog:
+    description: The catalog to create from the share (or existing catalog to use)
+    default: shared_catalog_${workspace.current_user.short_name}
+  use_existing_catalog:
+    description: Use existing catalog instead of creating one (useful when user lacks CREATE CATALOG permission)
+    default: "false"
+
+  # ===========================================
+  # SERVING ENDPOINT CONFIGURATION
+  # ===========================================
+  deploy_serving:
+    description: Whether to deploy the model to a serving endpoint (true/false)
+    default: "true"
+  serving_endpoint_name:
+    description: The name of the serving endpoint to create/update
+    default: target-model-${workspace.current_user.short_name}-endpoint
+
+  # ===========================================
+  # ONLINE FEATURE STORE CONFIGURATION
+  # Required when the model has Feature Lookup dependencies
+  # ===========================================
+  create_online_table:
+    description: Whether to create online tables for feature lookup (true/false)
+    default: "true"
+  online_store_name:
+    description: Name of the Lakebase online store (will be made DNS-compliant). Set to NONE to auto-generate.
+    default: "NONE"
+  create_online_store:
+    description: Whether to create the online store if it doesn't exist (true/false)
+    default: "true"
+  online_table_target_catalog:
+    description: |
+      Writable catalog for online tables. REQUIRED when create_online_table=true.
+      Shared catalogs are read-only, so online tables must be in a different writable catalog.
+    default: main
+  online_table_target_schema:
+    description: |
+      Schema within online_table_target_catalog for online tables. REQUIRED when create_online_table=true.
+    default: default
+
+  # ===========================================
+  # CLUSTER CONFIGURATION (for dev target only)
+  # ===========================================
+  existing_cluster_id:
+    description: Optional existing cluster ID to use instead of job cluster (mainly for dev/testing)
+    default: ""
+
+artifacts:
+  default:
+    type: whl
+    build: python3 setup.py bdist_wheel
+    path: .
+    files:
+      - source: dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+
+include:
+  - resources/*.yml
+
+targets:
+  # ===========================================
+  # DEVELOPMENT TARGET
+  # Uses existing cluster for faster iteration
+  # To use: Set existing_cluster_id in your environment or override it
+  # ===========================================
+  dev:
+    mode: development
+    default: true
+    workspace:
+      # REQUIRED: Set this to your workspace URL
+      host: ${DATABRICKS_HOST}
+
+  # ===========================================
+  # PRODUCTION TARGET
+  # Uses job clusters for isolation and reproducibility
+  # ===========================================
+  prod:
+    mode: production
+    workspace:
+      # REQUIRED: Set this to your workspace URL
+      host: ${DATABRICKS_HOST}

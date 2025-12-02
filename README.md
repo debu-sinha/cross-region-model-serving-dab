@@ -1,0 +1,298 @@
+# Cross-Region Model Serving with Delta Sharing
+
+Share ML models across Databricks workspaces using Delta Sharing, with automatic online feature table synchronization and serving endpoint deployment.
+
+## What This Does
+
+This tool automates sharing an ML model from one Databricks workspace to another:
+
+```
+SOURCE WORKSPACE                          TARGET WORKSPACE
+================                          ================
+
+[Your ML Model] ──┐
+                  │
+[Feature Table]  ─┼── Delta Share ───────> [Shared Catalog]
+                  │                              │
+                                                 ▼
+                                          [Online Tables]
+                                                 │
+                                                 ▼
+                                          [Serving Endpoint]
+                                                 │
+                                                 ▼
+                                          [API for Predictions]
+```
+
+## Key Concepts (for Beginners)
+
+**Databricks Workspace**: A cloud environment where you build and run data/ML workloads.
+
+**Unity Catalog**: The central place where all your data assets (tables, models) are registered.
+
+**Delta Sharing**: A technology to securely share data between workspaces (even across organizations).
+
+**Feature Table**: A table containing features (input variables) for ML models.
+
+**Online Table**: A fast-access copy of your feature table for real-time inference.
+
+**Serving Endpoint**: An API that serves your model for predictions.
+
+## Prerequisites
+
+Before you start, you need:
+
+1. **Databricks CLI** (version 0.200 or later)
+   ```bash
+   # Install
+   pip install databricks-cli
+
+   # Verify version
+   databricks --version
+   ```
+
+2. **Python 3.8+** installed
+
+3. **Two Databricks Workspaces** (can be the same workspace for testing)
+
+4. **Required Permissions**:
+   - Source workspace: Can create shares and recipients
+   - Target workspace: Can create catalogs, online stores, and serving endpoints
+
+## Quick Start (5-Minute Setup)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone <repository-url>
+cd cross-region-model-serving
+```
+
+### Step 2: Configure Databricks CLI
+
+```bash
+# Configure CLI with your workspace
+databricks configure --host https://your-workspace.cloud.databricks.com
+```
+
+### Step 3: Create a Secret Scope
+
+Secrets store sensitive information (like access tokens) securely.
+
+```bash
+# Create a secret scope
+databricks secrets create-scope my_cross_region_secrets
+
+# Store target workspace URL
+databricks secrets put-secret my_cross_region_secrets host \
+  --string-value "https://target-workspace.cloud.databricks.com"
+
+# Store target workspace token
+databricks secrets put-secret my_cross_region_secrets token \
+  --string-value "YOUR_TARGET_WORKSPACE_TOKEN"
+```
+
+**How to get a token**: In your target workspace, go to User Settings > Developer > Access Tokens > Generate New Token.
+
+### Step 4: Set Your Workspace URL
+
+```bash
+export DATABRICKS_HOST="https://your-source-workspace.cloud.databricks.com"
+```
+
+### Step 5: Deploy and Run
+
+```bash
+# Deploy the bundle
+databricks bundle deploy -t dev
+
+# Run the job
+databricks bundle run -t dev cross_region_model_share_job
+```
+
+That's it! The job will:
+1. Create a demo model (if you don't have one)
+2. Set up Delta Sharing
+3. Create online tables in the target
+4. Deploy a serving endpoint
+
+## Configuration Reference
+
+All settings are in `databricks.yml`. Here's what each one does:
+
+### Secret Scope Configuration
+
+| Parameter | What It Does | Default Value |
+|-----------|--------------|---------------|
+| `secret_scope` | Name of the Databricks secret scope containing target workspace credentials | `my_cross_region_secrets` |
+
+**Your secret scope must contain two secrets:**
+- `host`: Target workspace URL (e.g., `https://target.cloud.databricks.com`)
+- `token`: Target workspace personal access token
+
+### Source Workspace Settings
+
+| Parameter | What It Does | Default Value |
+|-----------|--------------|---------------|
+| `model_name` | Full name of the model to share (format: `catalog.schema.model`) | `main.default.model_<your_username>` |
+| `share_name` | Name for the Delta Share | `share_<your_username>` |
+| `recipient_name` | Name for the recipient (ignored for same-metastore) | `recipient_<your_username>` |
+| `create_recipient` | Whether to create recipient if it doesn't exist | `true` |
+
+### Target Workspace Settings
+
+| Parameter | What It Does | Default Value |
+|-----------|--------------|---------------|
+| `provider_name` | Provider name. Use `self` if both workspaces share the same Unity Catalog metastore | `self` |
+| `target_catalog` | Name for the catalog created from the share | `shared_catalog_<your_username>` |
+| `use_existing_catalog` | Use an existing catalog instead of creating one | `false` |
+
+### Serving Endpoint Settings
+
+| Parameter | What It Does | Default Value |
+|-----------|--------------|---------------|
+| `deploy_serving` | Whether to deploy a serving endpoint | `true` |
+| `serving_endpoint_name` | Name for the serving endpoint | `target-model-<your_username>-endpoint` |
+
+### Online Feature Store Settings
+
+These are required if your model uses feature lookups (features are automatically retrieved at inference time).
+
+| Parameter | What It Does | Default Value |
+|-----------|--------------|---------------|
+| `create_online_table` | Whether to create online tables for fast feature lookup | `true` |
+| `online_store_name` | Name for the Lakebase online store | Auto-generated |
+| `create_online_store` | Create the online store if it doesn't exist | `true` |
+| `online_table_target_catalog` | Writable catalog for online tables (IMPORTANT: shared catalogs are read-only) | `main` |
+| `online_table_target_schema` | Schema for online tables | `default` |
+
+## Common Use Cases
+
+### Use Case 1: Share Your Production Model
+
+Edit `databricks.yml`:
+
+```yaml
+variables:
+  model_name:
+    default: "prod_catalog.ml_models.fraud_detector"
+  create_online_table:
+    default: "true"
+```
+
+### Use Case 2: No Feature Lookups
+
+If your model doesn't use feature tables:
+
+```yaml
+variables:
+  create_online_table:
+    default: "false"
+```
+
+### Use Case 3: Same Workspace Testing
+
+For testing with source and target in the same workspace:
+
+```yaml
+variables:
+  provider_name:
+    default: "self"  # Uses built-in same-metastore sharing
+```
+
+### Use Case 4: User Without CREATE CATALOG Permission
+
+Ask your admin to create the shared catalog first, then:
+
+```yaml
+variables:
+  use_existing_catalog:
+    default: "true"
+  target_catalog:
+    default: "admin_created_catalog"
+```
+
+## Job Tasks Explained
+
+The job runs three tasks in sequence:
+
+### Task 1: demo_setup
+
+Creates a sample model with feature table for testing. **Skip this if you're sharing your own model** by removing it from the job definition.
+
+### Task 2: source_share_setup
+
+Runs in the source workspace:
+- Detects feature table dependencies from your model
+- Creates a Delta Share
+- Adds model and feature tables to the share
+- Creates or configures the recipient
+
+### Task 3: target_registration_setup
+
+Runs with target workspace credentials:
+- Creates a shared catalog from the Delta Share
+- Creates online tables (for fast feature lookup)
+- Waits for online tables to be ready
+- Deploys the model to a serving endpoint
+
+## Troubleshooting
+
+### "Permission denied" errors
+
+**Problem**: You don't have required permissions.
+
+**Solution**:
+- Source: Need `CREATE SHARE` and `CREATE RECIPIENT` permissions
+- Target: Need `CREATE CATALOG`, `CREATE ONLINE STORE`, `CREATE SERVING ENDPOINT`
+
+### "Secret not found" error
+
+**Problem**: The secret scope or secrets don't exist.
+
+**Solution**: Create them using the commands in Step 3 above.
+
+### "Online table not ready" errors
+
+**Problem**: Trying to deploy endpoint before online tables are ready.
+
+**Solution**: The code automatically waits, but if it times out:
+1. Check that `online_table_target_catalog` is writable (not the shared catalog)
+2. Verify your source table has Change Data Feed enabled
+
+### "Same sharing identifier" error
+
+**Problem**: Trying to create a D2D recipient when both workspaces share the same metastore.
+
+**Solution**: Set `provider_name: "self"` in your configuration.
+
+## Project Structure
+
+```
+cross-region-model-serving/
+├── databricks.yml              # Main configuration file
+├── resources/
+│   └── model_share_job.yml     # Job definition
+├── src/
+│   ├── main.py                 # CLI entry point
+│   ├── source_manager.py       # Source workspace logic
+│   ├── target_manager.py       # Target workspace logic
+│   ├── demo_setup.py           # Demo model creation
+│   └── utils.py                # Shared utilities
+├── setup.py                    # Python package setup
+└── README.md                   # This file
+```
+
+## Cost Considerations
+
+- **Lakebase Online Stores**: Billed based on capacity. Delete when not in use.
+- **Serving Endpoints**: Billed while running. Can scale to zero if configured.
+- **Delta Sharing**: No additional cost for sharing within the same cloud.
+
+## Author
+
+**Debu Sinha** - [GitHub](https://github.com/debu-sinha)
+
+## License
+
+MIT License - feel free to use and modify.

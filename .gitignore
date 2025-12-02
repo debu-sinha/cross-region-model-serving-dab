@@ -1,0 +1,41 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+*.whl
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Databricks
+.databricks/
+*.db
+mlflow.db
+
+# Logs
+*.log
+deploy_log.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local settings
+.claude/
+*.local.json

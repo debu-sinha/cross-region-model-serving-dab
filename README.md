@@ -51,62 +51,104 @@ Before you start, you need:
    - Source workspace: Can create shares and recipients
    - Target workspace: Can create catalogs, online stores, and serving endpoints
 
-## Quick Start (5-Minute Setup)
+## Quick Start
 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd cross-region-model-serving
+git clone https://github.com/debu-sinha/cross-region-model-serving-dab.git
+cd cross-region-model-serving-dab
 ```
 
-### Step 2: Configure Databricks CLI
+### Step 2: Configure Databricks CLI Authentication
+
+You have two options for authentication. Choose ONE:
+
+**Option A: Using a CLI Profile (Recommended)**
 
 ```bash
-# Configure CLI with your workspace
-databricks configure --host https://your-workspace.cloud.databricks.com
+# Create a profile for your workspace
+databricks configure --profile my-workspace
+
+# When prompted, enter:
+#   - Databricks Host: https://your-workspace.cloud.databricks.com
+#   - Personal Access Token: your-token
+
+# Then set the profile for this session
+export DATABRICKS_CONFIG_PROFILE=my-workspace
 ```
 
-### Step 3: Create a Secret Scope
-
-Secrets store sensitive information (like access tokens) securely.
+**Option B: Using Environment Variables**
 
 ```bash
-# Create a secret scope
+export DATABRICKS_HOST="https://your-workspace.cloud.databricks.com"
+export DATABRICKS_TOKEN="your-personal-access-token"
+```
+
+**Verify authentication works:**
+
+```bash
+databricks auth describe
+```
+
+You should see your workspace URL and user email.
+
+### Step 3: Create a Secret Scope for Target Workspace Credentials
+
+The job needs credentials to connect to the target workspace. Store these in a secret scope:
+
+```bash
+# Create a secret scope (choose a name, default is 'my_cross_region_secrets')
 databricks secrets create-scope my_cross_region_secrets
 
 # Store target workspace URL
 databricks secrets put-secret my_cross_region_secrets host \
   --string-value "https://target-workspace.cloud.databricks.com"
 
-# Store target workspace token
+# Store target workspace personal access token
 databricks secrets put-secret my_cross_region_secrets token \
   --string-value "YOUR_TARGET_WORKSPACE_TOKEN"
 ```
 
-**How to get a token**: In your target workspace, go to User Settings > Developer > Access Tokens > Generate New Token.
+**How to get a token**: In your target workspace, go to **User Settings > Developer > Access Tokens > Generate New Token**.
 
-### Step 4: Set Your Workspace URL
+**Note**: If source and target are the same workspace, use the same workspace URL and token.
 
-```bash
-export DATABRICKS_HOST="https://your-source-workspace.cloud.databricks.com"
+### Step 4: Review Configuration (Optional)
+
+The defaults in `databricks.yml` work for most cases. Review and modify if needed:
+
+```yaml
+variables:
+  secret_scope:
+    default: my_cross_region_secrets  # Must match Step 3
+
+  # For same-metastore sharing (most common):
+  provider_name:
+    default: self
 ```
 
-### Step 5: Deploy and Run
+### Step 5: Deploy the Bundle
 
 ```bash
-# Deploy the bundle
 databricks bundle deploy -t dev
+```
 
-# Run the job
+This uploads the code and creates the job in your workspace.
+
+### Step 6: Run the Job
+
+```bash
 databricks bundle run -t dev cross_region_model_share_job
 ```
 
-That's it! The job will:
-1. Create a demo model (if you don't have one)
-2. Set up Delta Sharing
-3. Create online tables in the target
+The job will:
+1. Create a demo model with feature table (for testing)
+2. Set up Delta Sharing from source to target
+3. Create online tables in the target for low-latency feature lookup
 4. Deploy a serving endpoint
+
+**Monitor progress**: The command outputs a URL to track the job run.
 
 ## Configuration Reference
 
@@ -257,6 +299,12 @@ Runs with target workspace credentials:
 **Problem**: Trying to create a D2D recipient when both workspaces share the same metastore.
 
 **Solution**: Set `provider_name: "self"` in your configuration.
+
+### Bundle validation fails with host mismatch
+
+**Problem**: Error about host in profile not matching bundle configuration.
+
+**Solution**: This bundle uses your CLI profile or environment variables for the workspace host. Do NOT set `host: ${DATABRICKS_HOST}` in the targets section of `databricks.yml`. The workspace is automatically determined from your authentication.
 
 ## Project Structure
 

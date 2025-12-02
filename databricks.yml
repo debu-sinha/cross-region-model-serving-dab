@@ -98,9 +98,12 @@ targets:
   dev:
     mode: development
     default: true
-    workspace:
-      # REQUIRED: Set this to your workspace URL
-      host: ${DATABRICKS_HOST}
+    # Workspace host is determined by:
+    # 1. DATABRICKS_HOST environment variable, OR
+    # 2. DATABRICKS_CONFIG_PROFILE profile's host setting
+    # If neither is set, you can hardcode it here:
+    # workspace:
+    #   host: https://your-workspace.cloud.databricks.com
 
   # ===========================================
   # PRODUCTION TARGET
@@ -108,6 +111,6 @@ targets:
   # ===========================================
   prod:
     mode: production
-    workspace:
-      # REQUIRED: Set this to your workspace URL
-      host: ${DATABRICKS_HOST}
+    # Workspace host is determined by:
+    # 1. DATABRICKS_HOST environment variable, OR
+    # 2. DATABRICKS_CONFIG_PROFILE profile's host setting

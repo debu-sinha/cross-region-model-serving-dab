@@ -6,23 +6,15 @@ Share ML models across Databricks workspaces using Delta Sharing, with automatic
 
 This tool automates sharing an ML model from one Databricks workspace to another:
 
-```
-SOURCE WORKSPACE                          TARGET WORKSPACE
-================                          ================
+![Architecture Diagram](docs/architecture.png)
 
-[Your ML Model] ──┐
-                  │
-[Feature Table]  ─┼── Delta Share ───────> [Shared Catalog]
-                  │                              │
-                                                 ▼
-                                          [Online Tables]
-                                                 │
-                                                 ▼
-                                          [Serving Endpoint]
-                                                 │
-                                                 ▼
-                                          [API for Predictions]
-```
+**How it works:**
+1. **Provider Workspace**: Your ML model and its feature tables are packaged into a Delta Share
+2. **Delta Sharing**: Securely transfers the share to the recipient workspace (zero-copy for same cloud)
+3. **Recipient Workspace**:
+   - Mounts the shared catalog (read-only access to model and tables)
+   - Creates online tables from shared feature tables for low-latency lookup
+   - Deploys a serving endpoint that automatically looks up features at inference time
 
 ## Key Concepts (for Beginners)
 

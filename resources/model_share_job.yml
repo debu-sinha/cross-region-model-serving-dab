@@ -5,12 +5,9 @@ resources:
       job_clusters:
         - job_cluster_key: common_cluster
           new_cluster:
-            spark_version: 16.4.x-cpu-ml-scala2.12
-            node_type_id: i3.xlarge
+            spark_version: 15.4.x-cpu-ml-scala2.12
+            node_type_id: ${var.node_type_id}
             num_workers: 1
-            # For AWS, use: i3.xlarge or m5.xlarge
-            # For Azure, Standard_DS3_v2 is common
-            # For GCP, n1-standard-4
 
       tasks:
         - task_key: demo_setup
@@ -26,7 +23,7 @@ resources:
               - "--create_online_table"
               - "true"
           libraries:
-            - whl: ../dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+            - whl: ../dist/*.whl
 
 
 
@@ -53,7 +50,7 @@ resources:
               - "--target_token"
               - "{{secrets/${var.secret_scope}/token}}"
           libraries:
-            - whl: ../dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+            - whl: ../dist/*.whl
 
 
 
@@ -94,6 +91,6 @@ resources:
               - "--use_existing_catalog"
               - "${var.use_existing_catalog}"
           libraries:
-            - whl: ../dist/cross_region_model_serving-0.1.0-py3-none-any.whl
+            - whl: ../dist/*.whl
 
 

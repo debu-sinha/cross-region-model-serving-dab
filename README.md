@@ -329,8 +329,6 @@ These are product-level limitations in Databricks, not limitations of this DAB:
 
 - **Online tables require writable catalog**: Online tables cannot be created in shared (read-only) catalogs. This DAB creates them in a separate writable catalog (`online_table_target_catalog`).
 
-- **Snapshot sync only for shared tables**: Delta Shared tables only support Snapshot sync mode for online tables. Triggered and Continuous modes require Change Data Feed (CDF), which is not yet supported for shared tables. See [Databricks documentation](https://docs.databricks.com/en/machine-learning/feature-store/online-tables.html).
-
 - **Multiple shares of same model**: If the same model is shared via multiple Delta Shares to the same recipient workspace, only the most recently created share is recognized. Avoid sharing the same model through multiple shares to the same recipient.
 
 ## Cost Considerations

@@ -34,7 +34,7 @@ This tool automates sharing an ML model from one Databricks workspace to another
 
 Before you start, you need:
 
-1. **Databricks CLI** (version 0.205 or later) — the **new** Databricks CLI, not the legacy `databricks-cli` PyPI package
+1. **Databricks CLI** (version 0.218.0 or later) — the **new** Databricks CLI, not the legacy `databricks-cli` PyPI package
 
    **macOS / Linux (Homebrew):**
    ```bash
@@ -53,7 +53,7 @@ Before you start, you need:
    ```
 
    ```bash
-   # Verify version (must be 0.205+)
+   # Verify version (must be 0.218.0+)
    databricks --version
    ```
 

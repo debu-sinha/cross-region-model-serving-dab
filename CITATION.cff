@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Cross-Region Model Serving with Delta Sharing"
+abstract: >-
+  Production-ready Databricks Asset Bundle for cross-region ML model serving
+  using Delta Sharing. Automates sharing models and feature tables across
+  workspaces with zero-copy data access and online feature store synchronization.
+authors:
+  - family-names: Sinha
+    given-names: Debu
+    orcid: ""
+version: 1.0.0
+date-released: "2025-12-05"
+license: MIT
+url: "https://github.com/debu-sinha/cross-region-model-serving-dab"
+repository-code: "https://github.com/debu-sinha/cross-region-model-serving-dab"
+keywords:
+  - databricks
+  - delta-sharing
+  - mlops
+  - model-serving
+  - feature-store
+  - databricks-asset-bundles

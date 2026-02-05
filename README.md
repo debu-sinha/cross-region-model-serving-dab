@@ -34,14 +34,30 @@ This tool automates sharing an ML model from one Databricks workspace to another
 
 Before you start, you need:
 
-1. **Databricks CLI** (version 0.200 or later)
-   ```bash
-   # Install
-   pip install databricks-cli
+1. **Databricks CLI** (version 0.205 or later) — the **new** Databricks CLI, not the legacy `databricks-cli` PyPI package
 
-   # Verify version
+   **macOS / Linux (Homebrew):**
+   ```bash
+   brew tap databricks/tap
+   brew install databricks
+   ```
+
+   **macOS / Linux (curl):**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+   ```
+
+   **Windows (WinGet):**
+   ```powershell
+   winget install Databricks.DatabricksCLI
+   ```
+
+   ```bash
+   # Verify version (must be 0.205+)
    databricks --version
    ```
+
+   > **Note:** Do *not* use `pip install databricks-cli` — that installs the legacy CLI which does not support Databricks Asset Bundles.
 
 2. **Python 3.8+** installed
 
@@ -339,10 +355,62 @@ These are product-level limitations in Databricks, not limitations of this DAB:
 - **Serving Endpoints**: Billed while running. Can scale to zero if configured.
 - **Delta Sharing**: No additional cost for sharing within the same cloud.
 
+## Production Notes
+
+### Unity Catalog Prerequisites
+
+- Both workspaces must have Unity Catalog enabled
+- Source workspace metastore must have Delta Sharing enabled (Workspace Settings > Delta Sharing)
+- For cross-metastore sharing, both metastores must be accessible
+
+### RBAC Requirements
+
+| Role | Source Workspace | Target Workspace |
+|------|-----------------|-----------------|
+| **Minimum** | `CREATE SHARE`, `CREATE RECIPIENT` on metastore | `USE CATALOG`, `USE SCHEMA`, `SELECT` on shared catalog |
+| **Full deployment** | Above + model read access | Above + `CREATE CATALOG`, `CREATE SERVING ENDPOINT`, online store admin |
+| **Without CREATE CATALOG** | — | Set `use_existing_catalog: true` and have admin pre-create the catalog |
+
+### Online Table Prerequisites
+
+- Source feature tables must have **Change Data Feed** enabled (`ALTER TABLE SET TBLPROPERTIES (delta.enableChangeDataFeed = true)`)
+- Primary key columns must have `NOT NULL` constraints
+- Target workspace must support Lakebase (online store)
+
+### Resource Teardown
+
+To avoid ongoing costs, tear down resources in this order:
+
+```bash
+# 1. Delete the serving endpoint
+databricks serving-endpoints delete <endpoint-name>
+
+# 2. Delete online tables (via Catalog Explorer UI or API)
+#    Navigate to: Catalog > <online_table_target_catalog> > <schema> > online tables
+
+# 3. Delete the online store
+#    Navigate to: Catalog Explorer > Online Stores > delete
+
+# 4. Remove the shared catalog (target workspace)
+databricks catalogs delete <target_catalog> --force
+
+# 5. Remove the share and recipient (source workspace)
+databricks shares delete <share_name>
+databricks recipients delete <recipient_name>
+```
+
+> **Important:** Delete the serving endpoint *first*. Deleting online tables while an endpoint references them will cause serving errors.
+
+## How to Cite
+
+If you use this project in your work, see [`CITATION.cff`](CITATION.cff) or cite as:
+
+> Sinha, D. (2025). *Cross-Region Model Serving with Delta Sharing*. GitHub. https://github.com/debu-sinha/cross-region-model-serving-dab
+
 ## Author
 
 **Debu Sinha** - [GitHub](https://github.com/debu-sinha)
 
 ## License
 
-MIT License - feel free to use and modify.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

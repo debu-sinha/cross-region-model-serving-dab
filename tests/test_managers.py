@@ -41,7 +41,7 @@ class TestSourceManager(unittest.TestCase):
         mock_local_w.metastores.summary.return_value = mock_source_metastore
 
         mock_local_w.shares.get.side_effect = Exception("Not found")
-        mock_local_w.recipients.get.side_effect = [Exception("Not found"), MagicMock()]
+        mock_local_w.recipients.get.side_effect = [Exception("does not exist"), MagicMock()]
 
         mock_client = MagicMock()
         mock_mlflow.MlflowClient.return_value = mock_client

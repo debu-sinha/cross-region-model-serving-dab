@@ -36,7 +36,7 @@ def wait_for_online_table_sync(online_table_name, timeout_seconds=120, poll_inte
     start_time = time.time()
     while time.time() - start_time < timeout_seconds:
         time.sleep(poll_interval)
-        logger.info(f"Online table sync in progress...")
+        logger.info("Online table sync in progress...")
         if time.time() - start_time > 60:
             logger.info(f"Online table {online_table_name} sync initiated")
             return True
@@ -162,7 +162,7 @@ def setup_demo(catalog_name, schema_name, model_name, table_name, create_online_
                         name=online_store_name,
                         capacity="CU_1"
                     )
-                    logger.info(f"Online store creation initiated. Waiting for it to become available...")
+                    logger.info("Online store creation initiated. Waiting for it to become available...")
                     store = wait_for_online_store_available(fe, online_store_name)
                 else:
                     raise
@@ -307,7 +307,7 @@ def setup_demo(catalog_name, schema_name, model_name, table_name, create_online_
 
     endpoint_exists = False
     try:
-        existing_endpoint = w.serving_endpoints.get(endpoint_name)
+        w.serving_endpoints.get(endpoint_name)
         endpoint_exists = True
         logger.info(f"Endpoint {endpoint_name} already exists.")
     except Exception:
@@ -327,7 +327,7 @@ def setup_demo(catalog_name, schema_name, model_name, table_name, create_online_
         except Exception as update_error:
             error_str = str(update_error).lower()
             if "conflict" in error_str or "in progress" in error_str:
-                logger.warning(f"Endpoint is being updated, waiting and retrying...")
+                logger.warning("Endpoint is being updated, waiting and retrying...")
                 time.sleep(60)  # Wait a minute
                 try:
                     w.serving_endpoints.update_config(

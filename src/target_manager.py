@@ -14,8 +14,7 @@ with Feature Lookups, otherwise the endpoint will fail with
 """
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service import serving, catalog
-from databricks.sdk.service.catalog import OnlineTableSpec, OnlineTableSpecTriggeredSchedulingPolicy
+from databricks.sdk.service import serving
 from utils import (
     setup_logger,
     make_dns_compliant,
@@ -346,7 +345,7 @@ class TargetManager:
                                                 logger.info(f"    Feature dependency: {ft_name}")
                             else:
                                 found_model_version = "1"
-                                logger.warning(f"    No versions found, defaulting to version 1")
+                                logger.warning("    No versions found, defaulting to version 1")
                         except Exception as ve:
                             logger.warning(f"    Could not get versions: {ve}")
                             found_model_version = "1"
@@ -483,7 +482,7 @@ class TargetManager:
                 store = wait_for_online_store_available(fe, online_store_name)
             elif state_str == "UNKNOWN":
                 # State is unknown, try waiting for it to become available
-                logger.info(f"Online store state unknown, waiting for it to become AVAILABLE...")
+                logger.info("Online store state unknown, waiting for it to become AVAILABLE...")
                 store = wait_for_online_store_available(fe, online_store_name)
             return store
 
@@ -520,7 +519,7 @@ class TargetManager:
             endpoint_exists = True
             logger.info(f"  Endpoint exists. Current state: {existing.state.ready if existing.state else 'unknown'}")
         except Exception:
-            logger.info(f"  Endpoint does not exist. Will create new.")
+            logger.info("  Endpoint does not exist. Will create new.")
 
         # Configure served entity
         entity = serving.ServedEntityInput(

@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 from src.source_manager import SourceManager
 from src.target_manager import TargetManager
-from databricks.sdk.service import sharing
 
 
 class TestSourceManager(unittest.TestCase):

@@ -179,7 +179,7 @@ class SourceManager:
                 # Check if existing recipient is D2D compatible
                 if existing.authentication_type == sharing.AuthenticationType.TOKEN:
                     logger.warning(f"Recipient {recipient_name} exists but is TOKEN-based, not DATABRICKS.")
-                    logger.warning(f"Will use existing recipient as-is. D2D sharing may not work correctly.")
+                    logger.warning("Will use existing recipient as-is. D2D sharing may not work correctly.")
                     logger.warning(f"Consider manually deleting recipient '{recipient_name}' if you want to switch to D2D.")
                 else:
                     logger.info(f"Recipient {recipient_name} exists with DATABRICKS auth. Updating metastore ID...")
@@ -220,7 +220,7 @@ class SourceManager:
                         activation_link = rec.tokens[0].activation_url
                         logger.warning(f"\n{'='*80}")
                         logger.warning(f"ACTION REQUIRED: Recipient {recipient_name} created with TOKEN authentication.")
-                        logger.warning(f"You MUST manually activate this recipient to get the sharing token.")
+                        logger.warning("You MUST manually activate this recipient to get the sharing token.")
                         logger.warning(f"Activation Link: {activation_link}")
                         logger.warning(f"{'='*80}\n")
                     else:
@@ -429,7 +429,7 @@ class SourceManager:
                     from pyspark.sql import SparkSession
                     spark = SparkSession.builder.getOrCreate()
                     spark.sql(f"GRANT SELECT ON SHARE `{share_name}` TO RECIPIENT `{recipient_name}`")
-                    logger.info(f"Granted SELECT via SQL")
+                    logger.info("Granted SELECT via SQL")
                 except Exception as e3:
                     logger.warning(f"Could not grant via SQL: {e3}")
         except Exception as e:

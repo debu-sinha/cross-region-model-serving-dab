@@ -31,7 +31,7 @@ This project automates Databricks workspace operations involving:
 
 ### Out of scope
 
-- Vulnerabilities in Databricks platform services themselves (report to [Databricks Security](https://www.databricks.com/trust/security))
+- Vulnerabilities in Databricks platform services themselves (report to [Databricks Trust Center](https://www.databricks.com/trust))
 - Issues requiring physical access to infrastructure
 - Social engineering attacks
 

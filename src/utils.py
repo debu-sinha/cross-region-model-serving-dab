@@ -3,8 +3,8 @@ import sys
 import os
 import re
 import time
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
 def setup_logger(name):
     logger = logging.getLogger(name)
@@ -267,7 +267,6 @@ def extract_model_feature_dependencies(w, model_name: str, version: str = None) 
                         # Extract primary key info if available
                         try:
                             table_info = w.tables.get(table_name)
-                            pk_cols = []
                             if table_info.columns:
                                 # Look for primary key constraint info
                                 for col in table_info.columns:

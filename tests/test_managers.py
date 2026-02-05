@@ -48,9 +48,13 @@ class TestSourceManager(unittest.TestCase):
         mock_source_metastore.global_metastore_id = "aws:us-west-2:source-metastore-uuid"
         mock_local_w.metastores.summary.return_value = mock_source_metastore
 
-        # Recipient does not exist yet
+        # First recipients.get raises (in _ensure_recipient_exists), subsequent calls succeed
+        # (in _grant_recipient_access, the recipient exists after creation)
         mock_local_w.shares.get.side_effect = Exception("Share does not exist")
-        mock_local_w.recipients.get.side_effect = Exception("Recipient does not exist")
+        mock_local_w.recipients.get.side_effect = [
+            Exception("Recipient does not exist"),  # _ensure_recipient_exists
+            MagicMock(),                             # _grant_recipient_access
+        ]
 
         mock_client = MagicMock()
         mock_mlflow.MlflowClient.return_value = mock_client

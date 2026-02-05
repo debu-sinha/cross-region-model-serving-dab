@@ -1,5 +1,6 @@
 bundle:
   name: cross-region-model-serving
+  databricks_cli_version: ">=0.218.0"
 
 variables:
   # ===========================================

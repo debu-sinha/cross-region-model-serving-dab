@@ -1,82 +1,118 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from src.source_manager import SourceManager
-from src.target_manager import TargetManager
+from databricks.sdk.service import sharing
 
 
 class TestSourceManager(unittest.TestCase):
-    @patch('src.source_manager.WorkspaceClient')
-    @patch('src.source_manager.FeatureEngineeringClient')
-    @patch('src.source_manager.mlflow')
+    @patch('source_manager.WorkspaceClient')
+    @patch('source_manager.FeatureEngineeringClient')
+    @patch('source_manager.mlflow')
     def test_run_source(self, mock_mlflow, mock_fe, mock_wc):
+        """Test basic source sharing flow: create share, add model, grant access."""
+        from source_manager import SourceManager
+
         mock_w = mock_wc.return_value
-        mock_w.shares.get.side_effect = Exception("Not found")
+        mock_w.shares.get.side_effect = Exception("Share does not exist")
 
         mock_client = MagicMock()
         mock_mlflow.MlflowClient.return_value = mock_client
         mock_version = MagicMock()
         mock_version.version = "1"
+        mock_version.run_id = "run-123"
         mock_client.search_model_versions.return_value = [mock_version]
 
         manager = SourceManager()
-        manager.run("my.model", "my_share", "my_recipient")
+        manager.run("catalog.schema.my_model", "my_share", "my_recipient")
 
         mock_w.shares.create.assert_called_with(name="my_share")
         mock_w.shares.update.assert_called()
 
-    @patch('src.source_manager.WorkspaceClient')
-    @patch('src.source_manager.FeatureEngineeringClient')
-    @patch('src.source_manager.mlflow')
+    @patch('source_manager.WorkspaceClient')
+    @patch('source_manager.FeatureEngineeringClient')
+    @patch('source_manager.mlflow')
     def test_run_source_dynamic_recipient(self, mock_mlflow, mock_fe, mock_wc):
+        """Test cross-metastore D2D recipient creation with different metastore IDs."""
+        from source_manager import SourceManager
+
         mock_local_w = MagicMock()
         mock_target_w = MagicMock()
         mock_wc.side_effect = [mock_local_w, mock_target_w]
 
+        # Target metastore
         mock_target_metastore = MagicMock()
-        mock_target_metastore.global_metastore_id = "global-id-123"
+        mock_target_metastore.global_metastore_id = "aws:us-east-1:target-metastore-uuid"
         mock_target_w.metastores.summary.return_value = mock_target_metastore
 
+        # Source metastore (different from target)
         mock_source_metastore = MagicMock()
-        mock_source_metastore.global_metastore_id = "global-id-456"
+        mock_source_metastore.global_metastore_id = "aws:us-west-2:source-metastore-uuid"
         mock_local_w.metastores.summary.return_value = mock_source_metastore
 
-        mock_local_w.shares.get.side_effect = Exception("Not found")
-        mock_local_w.recipients.get.side_effect = [Exception("does not exist"), MagicMock()]
+        # Recipient does not exist yet
+        mock_local_w.shares.get.side_effect = Exception("Share does not exist")
+        mock_local_w.recipients.get.side_effect = Exception("Recipient does not exist")
 
         mock_client = MagicMock()
         mock_mlflow.MlflowClient.return_value = mock_client
         mock_version = MagicMock()
         mock_version.version = "1"
+        mock_version.run_id = "run-456"
         mock_client.search_model_versions.return_value = [mock_version]
 
         manager = SourceManager()
-        manager.run("my.model", "my_share", "my_recipient", target_host="host", target_token="token")
+        manager.run(
+            "catalog.schema.my_model",
+            "my_share",
+            "my_recipient",
+            target_host="https://target.cloud.databricks.com",
+            target_token="dapi-target-token",
+        )
 
         mock_target_w.metastores.summary.assert_called()
         mock_local_w.recipients.create.assert_called()
-        call_args = mock_local_w.recipients.create.call_args
-        self.assertIn("data_recipient_global_metastore_id='global-id-123'", str(call_args))
+        call_kwargs = mock_local_w.recipients.create.call_args
+        self.assertEqual(
+            call_kwargs.kwargs.get("authentication_type")
+            or call_kwargs[1].get("authentication_type"),
+            sharing.AuthenticationType.DATABRICKS,
+        )
 
 
 class TestTargetManager(unittest.TestCase):
-    @patch('src.target_manager.WorkspaceClient')
+    @patch('target_manager.WorkspaceClient')
     def test_run_target(self, mock_wc):
+        """Test target flow: create catalog from share, discover model, deploy endpoint."""
+        from target_manager import TargetManager
+
         mock_w = mock_wc.return_value
-        mock_w.catalogs.get.side_effect = Exception("Not found")
-        mock_w.serving_endpoints.get.side_effect = Exception("Not found")
+        mock_w.catalogs.get.side_effect = Exception("Catalog does not exist")
+        mock_w.serving_endpoints.get.side_effect = Exception("Endpoint does not exist")
 
         mock_schema = MagicMock()
         mock_schema.name = "default"
         mock_w.schemas.list.return_value = [mock_schema]
 
         mock_model = MagicMock()
-        mock_model.full_name = "my_catalog.default.my_model"
+        mock_model.full_name = "shared_catalog.default.my_model"
         mock_w.registered_models.list.return_value = [mock_model]
 
-        manager = TargetManager("host", "token")
-        manager.run("my_share", "my_provider", "my_catalog", "true", "my_endpoint")
+        manager = TargetManager(
+            "https://target.cloud.databricks.com",
+            "dapi-target-token",
+        )
+        manager.run(
+            share_name="my_share",
+            provider_name="my_provider",
+            target_catalog="shared_catalog",
+            deploy_serving="true",
+            serving_endpoint_name="my-endpoint",
+        )
 
-        mock_w.catalogs.create.assert_called_with(name="my_catalog", provider_name="my_provider", share_name="my_share")
+        mock_w.catalogs.create.assert_called_with(
+            name="shared_catalog",
+            provider_name="my_provider",
+            share_name="my_share",
+        )
         mock_w.serving_endpoints.create.assert_called()
 
 

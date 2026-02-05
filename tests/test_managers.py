@@ -32,9 +32,13 @@ class TestSourceManager(unittest.TestCase):
         mock_target_w = MagicMock()
         mock_wc.side_effect = [mock_local_w, mock_target_w]
 
-        mock_metastore = MagicMock()
-        mock_metastore.global_metastore_id = "global-id-123"
-        mock_target_w.metastores.current.return_value = mock_metastore
+        mock_target_metastore = MagicMock()
+        mock_target_metastore.global_metastore_id = "global-id-123"
+        mock_target_w.metastores.summary.return_value = mock_target_metastore
+
+        mock_source_metastore = MagicMock()
+        mock_source_metastore.global_metastore_id = "global-id-456"
+        mock_local_w.metastores.summary.return_value = mock_source_metastore
 
         mock_local_w.shares.get.side_effect = Exception("Not found")
         mock_local_w.recipients.get.side_effect = [Exception("Not found"), MagicMock()]
@@ -48,7 +52,7 @@ class TestSourceManager(unittest.TestCase):
         manager = SourceManager()
         manager.run("my.model", "my_share", "my_recipient", target_host="host", target_token="token")
 
-        mock_target_w.metastores.current.assert_called()
+        mock_target_w.metastores.summary.assert_called()
         mock_local_w.recipients.create.assert_called()
         call_args = mock_local_w.recipients.create.call_args
         self.assertIn("data_recipient_global_metastore_id='global-id-123'", str(call_args))

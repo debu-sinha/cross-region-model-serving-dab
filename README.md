@@ -322,6 +322,90 @@ Runs with target workspace credentials:
 
 **Solution**: This bundle uses your CLI profile or environment variables for the workspace host. Do NOT set `host: ${DATABRICKS_HOST}` in the targets section of `databricks.yml`. The workspace is automatically determined from your authentication.
 
+## MCP Server
+
+The project includes an MCP (Model Context Protocol) server that exposes the sharing and consumption workflows as tools for AI assistants like Claude Desktop, Cursor, and VS Code.
+
+### Install
+
+```bash
+pip install -e .
+```
+
+### MCP Client Configuration
+
+**Claude Desktop** - add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cross-region-model-serving": {
+      "command": "cross-region-mcp",
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_TOKEN": "dapi..."
+      }
+    }
+  }
+}
+```
+
+**Cursor** - add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "cross-region-model-serving": {
+      "command": "cross-region-mcp",
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_TOKEN": "dapi..."
+      }
+    }
+  }
+}
+```
+
+Or run directly without installing:
+
+```json
+{
+  "mcpServers": {
+    "cross-region-model-serving": {
+      "command": "python",
+      "args": ["src/mcp_server.py"],
+      "cwd": "/path/to/cross-region-model-serving-dab",
+      "env": {
+        "DATABRICKS_HOST": "https://your-workspace.cloud.databricks.com",
+        "DATABRICKS_TOKEN": "dapi..."
+      }
+    }
+  }
+}
+```
+
+### Available Tools
+
+| Tool | What it does |
+|------|-------------|
+| `share_model` | Set up Delta Sharing for a model and its feature table dependencies |
+| `consume_shared_model` | Consume a shared model on a target workspace (catalog, online tables, endpoint) |
+| `inspect_model_dependencies` | Check what feature tables a model depends on |
+| `list_shares` | List all Delta Shares in the workspace |
+| `list_recipients` | List all sharing recipients |
+| `get_share_details` | Get a share's objects and permissions |
+| `check_endpoint_status` | Check a serving endpoint's readiness state |
+| `validate_target_configuration` | Pre-validate target config before running consumption |
+
+### Usage Examples
+
+Once configured, ask your AI assistant:
+
+- *"List all Delta Shares in my workspace"*
+- *"Share my model main.ml.fraud_detector to a recipient called analytics-team"*
+- *"Check if the serving endpoint target-fraud-endpoint is ready"*
+- *"What feature tables does main.ml.fraud_detector depend on?"*
+
 ## Project Structure
 
 ```
@@ -331,10 +415,14 @@ cross-region-model-serving/
 │   └── model_share_job.yml     # Job definition
 ├── src/
 │   ├── main.py                 # CLI entry point
+│   ├── mcp_server.py           # MCP server (8 tools, stdio transport)
 │   ├── source_manager.py       # Source workspace logic
 │   ├── target_manager.py       # Target workspace logic
 │   ├── demo_setup.py           # Demo model creation
 │   └── utils.py                # Shared utilities
+├── tests/
+│   ├── test_managers.py        # Source/Target manager tests
+│   └── test_mcp_server.py      # MCP server tests (14 tests)
 ├── setup.py                    # Python package setup
 └── README.md                   # This file
 ```

@@ -391,11 +391,20 @@ Or run directly without installing:
 | `share_model` | Set up Delta Sharing for a model and its feature table dependencies |
 | `consume_shared_model` | Consume a shared model on a target workspace (catalog, online tables, endpoint) |
 | `inspect_model_dependencies` | Check what feature tables a model depends on |
-| `list_shares` | List all Delta Shares in the workspace |
-| `list_recipients` | List all sharing recipients |
+| `list_shares` | List all Delta Shares in a workspace |
+| `list_recipients` | List all sharing recipients in a workspace |
 | `get_share_details` | Get a share's objects and permissions |
 | `check_endpoint_status` | Check a serving endpoint's readiness state |
 | `validate_target_configuration` | Pre-validate target config before running consumption |
+
+### Working with Multiple Workspaces
+
+The `DATABRICKS_HOST`/`DATABRICKS_TOKEN` env vars set the default workspace. Every tool also accepts optional credentials to connect to a different workspace instead:
+
+- **Source-side tools** (`share_model`, `list_shares`, `list_recipients`, `get_share_details`, `inspect_model_dependencies`) accept `workspace_host` and `workspace_token` (or `source_host`/`source_token` for `share_model`).
+- **Target-side tools** (`consume_shared_model`, `check_endpoint_status`) require explicit `target_host` and `target_token` since they always operate on a remote workspace.
+
+This means you can set your source workspace in the env vars and pass target workspace credentials per-call, or skip env vars entirely and provide credentials explicitly to every tool.
 
 ### Usage Examples
 
@@ -403,8 +412,9 @@ Once configured, ask your AI assistant:
 
 - *"List all Delta Shares in my workspace"*
 - *"Share my model main.ml.fraud_detector to a recipient called analytics-team"*
-- *"Check if the serving endpoint target-fraud-endpoint is ready"*
+- *"Check if the serving endpoint target-fraud-endpoint is ready on https://target.cloud.databricks.com"*
 - *"What feature tables does main.ml.fraud_detector depend on?"*
+- *"List the recipients on my target workspace at https://target.cloud.databricks.com"*
 
 ## Project Structure
 

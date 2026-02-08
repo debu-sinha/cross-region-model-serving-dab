@@ -61,6 +61,17 @@ def capture_logs():
             logging.getLogger(name).handlers = saved[name]
 
 
+def _get_client(host: str = "", token: str = ""):
+    """Create a WorkspaceClient. Uses explicit creds if provided, else env vars."""
+    from databricks.sdk import WorkspaceClient
+
+    h = _or_none(host)
+    t = _or_none(token)
+    if h and t:
+        return WorkspaceClient(host=h, token=t)
+    return WorkspaceClient()
+
+
 def _serialize_share(share) -> dict:
     """Extract JSON-safe fields from a ShareInfo SDK object."""
     return {
@@ -94,6 +105,8 @@ def share_model(
     target_host: str = "",
     target_token: str = "",
     create_recipient: bool = True,
+    source_host: str = "",
+    source_token: str = "",
 ) -> str:
     """Set up Delta Sharing for a Unity Catalog model and its feature table dependencies.
 
@@ -101,7 +114,8 @@ def share_model(
     tables, and grants access to the recipient. For cross-region D2D sharing,
     provide target_host and target_token.
 
-    Requires DATABRICKS_HOST and DATABRICKS_TOKEN env vars for the source workspace.
+    Uses DATABRICKS_HOST/TOKEN env vars for the source workspace by default.
+    Provide source_host and source_token to use a different source workspace.
 
     Args:
         model_name: Full model name (catalog.schema.model).
@@ -110,23 +124,48 @@ def share_model(
         target_host: Target workspace URL for D2D sharing. Leave empty for token-based.
         target_token: Target workspace PAT for D2D sharing. Leave empty for token-based.
         create_recipient: Auto-create recipient if it does not exist.
+        source_host: Source workspace URL. Uses env vars if empty.
+        source_token: Source workspace PAT. Uses env vars if empty.
     """
     try:
         from source_manager import SourceManager
 
-        with capture_logs() as log_buf:
-            mgr = SourceManager()
-            result = mgr.run(
-                model_name=model_name,
-                share_name=share_name,
-                recipient_name=recipient_name,
-                target_host=_or_none(target_host),
-                target_token=_or_none(target_token),
-                create_recipient=create_recipient,
-            )
-            logs = log_buf.getvalue()
+        # SourceManager uses WorkspaceClient() which reads env vars.
+        # Temporarily override if explicit source creds were provided.
+        src_h = _or_none(source_host)
+        src_t = _or_none(source_token)
+        old_host = os.environ.get("DATABRICKS_HOST")
+        old_token = os.environ.get("DATABRICKS_TOKEN")
 
-        return json.dumps({"status": "success", "data": result, "logs": logs})
+        if src_h and src_t:
+            os.environ["DATABRICKS_HOST"] = src_h
+            os.environ["DATABRICKS_TOKEN"] = src_t
+
+        try:
+            with capture_logs() as log_buf:
+                mgr = SourceManager()
+                result = mgr.run(
+                    model_name=model_name,
+                    share_name=share_name,
+                    recipient_name=recipient_name,
+                    target_host=_or_none(target_host),
+                    target_token=_or_none(target_token),
+                    create_recipient=create_recipient,
+                )
+                logs = log_buf.getvalue()
+
+            return json.dumps({"status": "success", "data": result, "logs": logs})
+        finally:
+            # Restore original env vars
+            if src_h and src_t:
+                if old_host is not None:
+                    os.environ["DATABRICKS_HOST"] = old_host
+                else:
+                    os.environ.pop("DATABRICKS_HOST", None)
+                if old_token is not None:
+                    os.environ["DATABRICKS_TOKEN"] = old_token
+                else:
+                    os.environ.pop("DATABRICKS_TOKEN", None)
 
     except Exception as exc:
         return json.dumps({
@@ -207,24 +246,28 @@ def consume_shared_model(
 def inspect_model_dependencies(
     model_name: str,
     version: str = "",
+    workspace_host: str = "",
+    workspace_token: str = "",
 ) -> str:
     """Inspect a Unity Catalog model's feature table dependencies.
 
     Returns feature tables, whether the model uses feature lookups, and
     online table specs needed for serving.
 
-    Requires DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
+    Uses DATABRICKS_HOST/TOKEN env vars by default. Provide workspace_host
+    and workspace_token to connect to a different workspace.
 
     Args:
         model_name: Full model name (catalog.schema.model).
         version: Model version to inspect (defaults to latest).
+        workspace_host: Workspace URL. Uses env vars if empty.
+        workspace_token: Workspace PAT. Uses env vars if empty.
     """
     try:
-        from databricks.sdk import WorkspaceClient
         from utils import extract_model_feature_dependencies
 
         with capture_logs() as log_buf:
-            w = WorkspaceClient()
+            w = _get_client(workspace_host, workspace_token)
             result = extract_model_feature_dependencies(
                 w, model_name, version=_or_none(version)
             )
@@ -241,15 +284,21 @@ def inspect_model_dependencies(
 
 
 @mcp.tool()
-def list_shares() -> str:
-    """List all Delta Shares in the current Databricks workspace.
+def list_shares(
+    workspace_host: str = "",
+    workspace_token: str = "",
+) -> str:
+    """List all Delta Shares in a Databricks workspace.
 
-    Requires DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
+    Uses DATABRICKS_HOST/TOKEN env vars by default. Provide workspace_host
+    and workspace_token to query a different workspace.
+
+    Args:
+        workspace_host: Workspace URL. Uses env vars if empty.
+        workspace_token: Workspace PAT. Uses env vars if empty.
     """
     try:
-        from databricks.sdk import WorkspaceClient
-
-        w = WorkspaceClient()
+        w = _get_client(workspace_host, workspace_token)
         shares = [_serialize_share(s) for s in w.shares.list()]
         return json.dumps({"status": "success", "data": shares})
 
@@ -262,15 +311,21 @@ def list_shares() -> str:
 
 
 @mcp.tool()
-def list_recipients() -> str:
-    """List all Delta Sharing recipients in the current Databricks workspace.
+def list_recipients(
+    workspace_host: str = "",
+    workspace_token: str = "",
+) -> str:
+    """List all Delta Sharing recipients in a Databricks workspace.
 
-    Requires DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
+    Uses DATABRICKS_HOST/TOKEN env vars by default. Provide workspace_host
+    and workspace_token to query a different workspace.
+
+    Args:
+        workspace_host: Workspace URL. Uses env vars if empty.
+        workspace_token: Workspace PAT. Uses env vars if empty.
     """
     try:
-        from databricks.sdk import WorkspaceClient
-
-        w = WorkspaceClient()
+        w = _get_client(workspace_host, workspace_token)
         recipients = [_serialize_recipient(r) for r in w.recipients.list()]
         return json.dumps({"status": "success", "data": recipients})
 
@@ -283,18 +338,23 @@ def list_recipients() -> str:
 
 
 @mcp.tool()
-def get_share_details(share_name: str) -> str:
+def get_share_details(
+    share_name: str,
+    workspace_host: str = "",
+    workspace_token: str = "",
+) -> str:
     """Get details of a Delta Share including its shared objects and permissions.
 
-    Requires DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
+    Uses DATABRICKS_HOST/TOKEN env vars by default. Provide workspace_host
+    and workspace_token to query a different workspace.
 
     Args:
         share_name: Name of the Delta Share to inspect.
+        workspace_host: Workspace URL. Uses env vars if empty.
+        workspace_token: Workspace PAT. Uses env vars if empty.
     """
     try:
-        from databricks.sdk import WorkspaceClient
-
-        w = WorkspaceClient()
+        w = _get_client(workspace_host, workspace_token)
 
         share = w.shares.get(share_name)
         objects = []

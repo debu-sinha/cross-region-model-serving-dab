@@ -1,0 +1,9 @@
+# Additional dependencies for running on a Databricks cluster
+# (source/target managers, demo setup, interactive setup)
+# Install with: pip install -r requirements-cluster.txt
+-r requirements.txt
+mlflow>=2.10.0,<4.0.0
+databricks-feature-engineering>=0.13.0,<1.0.0
+pandas>=2.0.0,<3.0.0
+scikit-learn>=1.3.0,<2.0.0
+pyyaml

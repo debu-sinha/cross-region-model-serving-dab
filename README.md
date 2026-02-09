@@ -332,6 +332,12 @@ The project includes an MCP (Model Context Protocol) server that exposes the sha
 pip install -e .
 ```
 
+This installs only the MCP server and its minimal dependencies (`databricks-sdk`, `mcp`). If you also need the full CLI (source/target managers) for local testing:
+
+```bash
+pip install -e ".[cluster]"
+```
+
 ### MCP Client Configuration
 
 **Claude Desktop** - add to `claude_desktop_config.json`:

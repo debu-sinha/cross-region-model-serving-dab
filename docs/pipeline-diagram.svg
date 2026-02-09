@@ -1,52 +1,102 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="370" viewBox="0 0 980 370">
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420">
 <defs>
-  <marker id="arrow-blk" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1b1b1f" /></marker>
-  <style>text { font-family: "Virgil", "Segoe UI", system-ui, -apple-system, sans-serif; }</style>
+  <marker id="arrow-wh" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e2e8f0" /></marker>
+  <style>text { font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }</style>
+  <filter id="glow-sm">
+    <feGaussianBlur stdDeviation="1.5" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
 </defs>
 
+<!-- Background -->
+<rect width="980" height="420" rx="12" fill="#0f172a"/>
+
 <!-- Title -->
-<text x="260" y="34" font-size="24" fill="#1b1b1f">Databricks Asset Bundle - Job Pipeline</text>
+<text x="490" y="38" font-size="22" fill="#f1f5f9" text-anchor="middle" font-weight="600">Databricks Asset Bundle - Job Pipeline</text>
+<text x="490" y="58" font-size="13" fill="#64748b" text-anchor="middle">Three-task workflow: Setup, Share, Deploy</text>
 
 <!-- Task 1: Demo Setup -->
-<rect x="30" y="65" width="260" height="200" rx="8" stroke="#2f9e44" fill="#d3f9d8" stroke-width="2" />
-<text x="72" y="90" font-size="18" fill="#2f9e44">Task 1: Demo Setup</text>
-<line x1="50" y1="100" x2="270" y2="100" stroke="#2f9e44" stroke-width="1" opacity="0.4" />
-<text x="50" y="125" font-size="14" fill="#1b1b1f">Create feature table</text>
-<text x="50" y="143" font-size="14" fill="#1b1b1f">with CDF + NOT NULL</text>
-<text x="50" y="170" font-size="14" fill="#1b1b1f">Train model with</text>
-<text x="50" y="188" font-size="14" fill="#1b1b1f">FeatureLookup</text>
-<text x="50" y="215" font-size="14" fill="#1b1b1f">Log to Unity Catalog</text>
-<text x="62" y="245" font-size="12" fill="#868e96">(optional - skip for your model)</text>
+<rect x="30" y="80" width="270" height="240" rx="10" fill="#1e293b" stroke="#4ade80" stroke-width="2"/>
+<rect x="30" y="80" width="270" height="36" rx="10" fill="#14532d"/>
+<rect x="30" y="100" width="270" height="16" fill="#14532d"/>
+<text x="165" y="104" font-size="16" fill="#86efac" text-anchor="middle" font-weight="600">Task 1: Demo Setup</text>
+
+<text x="55" y="140" font-size="13" fill="#cbd5e1">Create feature table</text>
+<text x="55" y="160" font-size="12" fill="#94a3b8">with CDF + NOT NULL constraints</text>
+
+<text x="55" y="188" font-size="13" fill="#cbd5e1">Train model with</text>
+<text x="55" y="208" font-size="12" fill="#94a3b8">FeatureLookup + FeatureFunction</text>
+
+<text x="55" y="236" font-size="13" fill="#cbd5e1">Register to Unity Catalog</text>
+<text x="55" y="256" font-size="12" fill="#94a3b8">catalog.schema.model_name</text>
+
+<!-- Optional badge -->
+<rect x="110" y="280" width="110" height="24" rx="12" fill="#0f172a" stroke="#4ade80" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="165" y="296" font-size="11" fill="#4ade80" text-anchor="middle">OPTIONAL</text>
 
 <!-- Arrow 1->2 -->
-<path d="M 290 165 L 345 165" stroke="#1b1b1f" fill="none" stroke-width="2" marker-end="url(#arrow-blk)" />
+<path d="M 300 200 L 345 200" stroke="#e2e8f0" fill="none" stroke-width="2" marker-end="url(#arrow-wh)"/>
 
 <!-- Task 2: Source Share -->
-<rect x="345" y="65" width="260" height="200" rx="8" stroke="#e67700" fill="#fff4e6" stroke-width="2" />
-<text x="383" y="90" font-size="18" fill="#e67700">Task 2: Source Share</text>
-<line x1="365" y1="100" x2="585" y2="100" stroke="#e67700" stroke-width="1" opacity="0.4" />
-<text x="365" y="125" font-size="14" fill="#1b1b1f">Extract deps from</text>
-<text x="365" y="143" font-size="14" fill="#1b1b1f">model_version_dependencies</text>
-<text x="365" y="170" font-size="14" fill="#1b1b1f">Create Delta Share</text>
-<text x="365" y="188" font-size="14" fill="#1b1b1f">+ add MODEL, TABLE,</text>
-<text x="365" y="206" font-size="14" fill="#1b1b1f">  FUNCTION objects</text>
-<text x="365" y="238" font-size="14" fill="#1b1b1f">Grant to recipient</text>
+<rect x="345" y="80" width="270" height="240" rx="10" fill="#1e293b" stroke="#f97316" stroke-width="2"/>
+<rect x="345" y="80" width="270" height="36" rx="10" fill="#7c2d12"/>
+<rect x="345" y="100" width="270" height="16" fill="#7c2d12"/>
+<text x="480" y="104" font-size="16" fill="#fb923c" text-anchor="middle" font-weight="600">Task 2: Source Share</text>
+
+<text x="370" y="140" font-size="13" fill="#cbd5e1">Extract dependencies from</text>
+<text x="370" y="160" font-size="12" fill="#94a3b8">model_version_dependencies API</text>
+
+<text x="370" y="188" font-size="13" fill="#cbd5e1">Create Delta Share</text>
+<text x="370" y="208" font-size="12" fill="#94a3b8">+ add MODEL, TABLE, FUNCTION</text>
+
+<text x="370" y="236" font-size="13" fill="#cbd5e1">Grant recipient access</text>
+<text x="370" y="256" font-size="12" fill="#94a3b8">self (same metastore) or D2D</text>
+
+<!-- Detect badge -->
+<rect x="395" y="280" width="170" height="24" rx="12" fill="#0f172a" stroke="#f97316" stroke-width="1"/>
+<text x="480" y="296" font-size="11" fill="#fb923c" text-anchor="middle">AUTO-DETECT DEPS</text>
 
 <!-- Arrow 2->3 -->
-<path d="M 605 165 L 660 165" stroke="#1b1b1f" fill="none" stroke-width="2" marker-end="url(#arrow-blk)" />
+<path d="M 615 200 L 660 200" stroke="#e2e8f0" fill="none" stroke-width="2" marker-end="url(#arrow-wh)"/>
 
 <!-- Task 3: Target Setup -->
-<rect x="660" y="65" width="280" height="200" rx="8" stroke="#1971c2" fill="#d0ebff" stroke-width="2" />
-<text x="695" y="90" font-size="18" fill="#1971c2">Task 3: Target Setup</text>
-<line x1="680" y1="100" x2="920" y2="100" stroke="#1971c2" stroke-width="1" opacity="0.4" />
-<text x="680" y="125" font-size="14" fill="#1b1b1f">1. Create shared catalog</text>
-<text x="680" y="150" font-size="14" fill="#1b1b1f">2. Discover model + deps</text>
-<text x="680" y="175" font-size="14" fill="#1b1b1f">3. Create Lakebase store</text>
-<text x="680" y="193" font-size="14" fill="#1b1b1f">   + publish online tables</text>
-<text x="680" y="220" font-size="14" fill="#c92a2a">4. Wait for ONLINE state</text>
-<text x="680" y="248" font-size="14" fill="#1b1b1f">5. Deploy serving endpoint</text>
+<rect x="660" y="80" width="290" height="240" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+<rect x="660" y="80" width="290" height="36" rx="10" fill="#1e3a5f"/>
+<rect x="660" y="100" width="290" height="16" fill="#1e3a5f"/>
+<text x="805" y="104" font-size="16" fill="#93c5fd" text-anchor="middle" font-weight="600">Task 3: Target Setup</text>
+
+<!-- Step numbers with circles -->
+<circle cx="690" cy="136" r="10" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+<text x="690" y="140" font-size="11" fill="#93c5fd" text-anchor="middle">1</text>
+<text x="708" y="140" font-size="13" fill="#cbd5e1">Create shared catalog</text>
+
+<circle cx="690" cy="166" r="10" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+<text x="690" y="170" font-size="11" fill="#93c5fd" text-anchor="middle">2</text>
+<text x="708" y="170" font-size="13" fill="#cbd5e1">Discover model + deps</text>
+
+<circle cx="690" cy="196" r="10" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+<text x="690" y="200" font-size="11" fill="#93c5fd" text-anchor="middle">3</text>
+<text x="708" y="200" font-size="13" fill="#cbd5e1">Create Lakebase store</text>
+<text x="708" y="216" font-size="12" fill="#94a3b8">+ publish online tables</text>
+
+<circle cx="690" cy="242" r="10" fill="#450a0a" stroke="#ef4444" stroke-width="1.5" filter="url(#glow-sm)"/>
+<text x="690" y="246" font-size="11" fill="#fca5a5" text-anchor="middle">4</text>
+<text x="708" y="246" font-size="13" fill="#fca5a5" font-weight="600">Wait for ONLINE state</text>
+<text x="708" y="262" font-size="12" fill="#94a3b8">30s poll, 10min timeout</text>
+
+<circle cx="690" cy="288" r="10" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+<text x="690" y="292" font-size="11" fill="#93c5fd" text-anchor="middle">5</text>
+<text x="708" y="292" font-size="13" fill="#cbd5e1">Deploy serving endpoint</text>
+
+<!-- Critical badge -->
+<rect x="730" y="300" width="180" height="16" rx="3" fill="#0f172a" stroke="none"/>
+<text x="820" y="312" font-size="10" fill="#ef4444" text-anchor="middle">Step 4 is non-negotiable</text>
 
 <!-- Footer bar -->
-<rect x="30" y="295" width="910" height="50" rx="8" stroke="#868e96" fill="#f1f3f5" stroke-width="1" />
-<text x="125" y="325" font-size="14" fill="#868e96">All config in databricks.yml  |  Secrets via {{secrets/scope/key}}  |  One command: databricks bundle run</text>
+<rect x="30" y="345" width="920" height="50" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+<text x="490" y="367" font-size="12" fill="#94a3b8" text-anchor="middle">All config in databricks.yml  |  Secrets via {{secrets/scope/key}}  |  One command: databricks bundle run</text>
+<text x="490" y="385" font-size="11" fill="#64748b" text-anchor="middle">Target workspace credentials resolved at runtime -- never in job params or logs</text>
+
+<!-- Copyright -->
+<text x="490" y="412" font-size="10" fill="#475569" text-anchor="middle">github.com/debu-sinha/cross-region-model-serving-dab</text>
 </svg>

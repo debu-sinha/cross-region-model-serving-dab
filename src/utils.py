@@ -238,6 +238,7 @@ def extract_model_feature_dependencies(w, model_name: str, version: str = None) 
 
     result = {
         "feature_tables": [],
+        "functions": [],
         "has_feature_lookups": False,
         "online_table_specs": [],
         "model_name": model_name,
@@ -283,10 +284,21 @@ def extract_model_feature_dependencies(w, model_name: str, version: str = None) 
                                 "table_name_short": table_name.split(".")[-1]
                             })
 
-        logger.info(f"Model '{model_name}' v{version}: {len(result['feature_tables'])} feature table(s)")
+                if dep.function and dep.function.function_full_name:
+                    func_name = dep.function.function_full_name
+                    if func_name not in result["functions"]:
+                        result["functions"].append(func_name)
+
+        logger.info(
+            f"Model '{model_name}' v{version}: "
+            f"{len(result['feature_tables'])} feature table(s), "
+            f"{len(result['functions'])} function(s)"
+        )
         if result["has_feature_lookups"]:
             logger.info(f"  Feature tables: {result['feature_tables']}")
             logger.info("  Model uses Feature Lookups - online tables required for serving")
+        if result["functions"]:
+            logger.info(f"  Functions: {result['functions']}")
 
     except Exception as e:
         logger.warning(f"Could not extract model dependencies: {e}")

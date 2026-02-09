@@ -118,6 +118,41 @@ class TestInspectModelDependencies(unittest.TestCase):
         self.assertEqual(result["status"], "success")
         self.assertIn("data", result)
 
+    @patch("mlflow.MlflowClient")
+    @patch("mlflow.set_registry_uri")
+    @patch("databricks.sdk.WorkspaceClient")
+    def test_inspect_returns_function_deps(self, mock_wc, mock_set_uri, mock_mlflow_client):
+        """inspect_model_dependencies includes function dependencies in the result."""
+        from mcp_server import inspect_model_dependencies
+
+        mock_w = mock_wc.return_value
+
+        mock_table_dep = MagicMock()
+        mock_table_dep.table.table_full_name = "cat.sch.features"
+        mock_table_dep.function = None
+
+        mock_func_dep = MagicMock()
+        mock_func_dep.table = None
+        mock_func_dep.function.function_full_name = "cat.sch.my_udf"
+
+        mock_mv = MagicMock()
+        mock_mv.model_version_dependencies.dependencies = [mock_table_dep, mock_func_dep]
+        mock_w.model_versions.get.return_value = mock_mv
+        mock_w.tables.get.return_value = MagicMock(columns=None)
+
+        mock_client = mock_mlflow_client.return_value
+        mock_version = MagicMock()
+        mock_version.version = "1"
+        mock_version.run_id = "run-1"
+        mock_client.search_model_versions.return_value = [mock_version]
+
+        result = json.loads(inspect_model_dependencies("cat.sch.model"))
+        self.assertEqual(result["status"], "success")
+        data = result["data"]
+        self.assertIn("functions", data)
+        self.assertEqual(data["functions"], ["cat.sch.my_udf"])
+        self.assertEqual(data["feature_tables"], ["cat.sch.features"])
+
 
 class TestListShares(unittest.TestCase):
     @patch("databricks.sdk.WorkspaceClient")

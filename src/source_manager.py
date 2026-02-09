@@ -93,14 +93,16 @@ class SourceManager:
         latest_version = self._get_latest_model_version(model_name)
         logger.info(f"Found latest version: {latest_version.version}")
 
-        # Detect Feature Tables from Unity Catalog metadata
-        feature_tables = self._extract_feature_tables(latest_version.run_id, model_name)
-        
+        # Detect Feature Tables and Function dependencies from Unity Catalog metadata
+        deps = self._extract_dependencies(latest_version.run_id, model_name)
+        feature_tables = deps["feature_tables"]
+        functions = deps["functions"]
+
         # 2. Create/Update Share
         self._ensure_share_exists(share_name)
 
         # 3. Add Model and Dependencies to Share
-        self._add_objects_to_share(share_name, model_name, feature_tables)
+        self._add_objects_to_share(share_name, model_name, feature_tables, functions)
 
         # 4. Grant Access to Recipient
         self._grant_recipient_access(share_name, actual_recipient_name, target_host, create_recipient)
@@ -112,7 +114,8 @@ class SourceManager:
             "version": latest_version.version,
             "share": share_name,
             "recipient": actual_recipient_name,
-            "feature_tables": feature_tables
+            "feature_tables": feature_tables,
+            "functions": functions,
         }
 
     def _setup_databricks_recipient(self, recipient_name, target_host, target_token, create_if_missing=True):
@@ -238,16 +241,17 @@ class SourceManager:
         latest_version = sorted(versions, key=lambda x: int(x.version), reverse=True)[0]
         return latest_version
 
-    def _extract_feature_tables(self, run_id, model_name=None):
+    def _extract_dependencies(self, run_id, model_name=None):
         """
-        Extract feature table dependencies using Databricks SDK.
-        This reads the dependencies directly from the model version metadata.
+        Extract all dependencies (tables and functions) from model version metadata.
+
+        Returns dict with 'feature_tables' and 'functions' lists.
         """
-        feature_tables = []
-        
+        result = {"feature_tables": [], "functions": []}
+
         if not model_name:
-            logger.warning("model_name not provided to _extract_feature_tables. Cannot fetch dependencies.")
-            return feature_tables
+            logger.warning("model_name not provided. Cannot fetch dependencies.")
+            return result
 
         try:
             # Get version from run_id
@@ -258,41 +262,42 @@ class SourceManager:
                 if v.run_id == run_id:
                     target_version = v.version
                     break
-            
+
             if not target_version:
                 logger.warning(f"Could not find model version for run_id {run_id}")
-                return feature_tables
+                return result
 
             logger.info(f"Fetching dependencies for {model_name} version {target_version}...")
-            
-            # Get model version details including dependencies
-            # Note: w.model_versions maps to the correct API for this
+
             mv = self.w.model_versions.get(
-                full_name=model_name, 
+                full_name=model_name,
                 version=target_version
             )
-            
-            # Parse dependencies from model_version_dependencies
+
             if mv.model_version_dependencies and mv.model_version_dependencies.dependencies:
                 for dep in mv.model_version_dependencies.dependencies:
-                    # Each Dependency can have: connection, credential, function, or table
                     if dep.table and dep.table.table_full_name:
                         table_name = dep.table.table_full_name
-                        if table_name not in feature_tables:
-                            feature_tables.append(table_name)
+                        if table_name not in result["feature_tables"]:
+                            result["feature_tables"].append(table_name)
                             logger.info(f"Detected feature table dependency: {table_name}")
-            
-            if feature_tables:
-                logger.info(f"Successfully extracted {len(feature_tables)} feature tables via SDK.")
-            else:
-                logger.info("No feature table dependencies found in model version metadata.")
-                
+                    if dep.function and dep.function.function_full_name:
+                        func_name = dep.function.function_full_name
+                        if func_name not in result["functions"]:
+                            result["functions"].append(func_name)
+                            logger.info(f"Detected function dependency: {func_name}")
+
+            logger.info(
+                f"Extracted {len(result['feature_tables'])} table(s) and "
+                f"{len(result['functions'])} function(s) from model metadata."
+            )
+
         except Exception as e:
             logger.warning(f"SDK dependency extraction failed: {e}")
             import traceback
             logger.error(traceback.format_exc())
 
-        return feature_tables
+        return result
 
     def _ensure_share_exists(self, share_name):
         """Create share if it doesn't exist."""
@@ -308,9 +313,10 @@ class SourceManager:
             else:
                 raise
 
-    def _add_objects_to_share(self, share_name, model_name, feature_tables):
-        """Add model and feature tables to the share."""
-        logger.info(f"Adding model and {len(feature_tables)} feature tables to share...")
+    def _add_objects_to_share(self, share_name, model_name, feature_tables, functions=None):
+        """Add model, feature tables, and functions to the share."""
+        functions = functions or []
+        logger.info(f"Adding model, {len(feature_tables)} table(s), and {len(functions)} function(s) to share...")
         
         # Get current share contents to avoid duplicate errors
         try:
@@ -352,7 +358,21 @@ class SourceManager:
                 logger.info(f"Will add feature table: {ft}")
             else:
                 logger.info(f"Feature table {ft} already in share")
-        
+
+        # Add Functions / UDFs (if not already in share)
+        for fn in functions:
+            if fn not in existing_objects:
+                updates.append(sharing.SharedDataObjectUpdate(
+                    action=sharing.SharedDataObjectUpdateAction.ADD,
+                    data_object=sharing.SharedDataObject(
+                        name=fn,
+                        data_object_type=sharing.SharedDataObjectDataObjectType.FUNCTION,
+                    )
+                ))
+                logger.info(f"Will add function: {fn}")
+            else:
+                logger.info(f"Function {fn} already in share")
+
         if updates:
             try:
                 self.w.shares.update(name=share_name, updates=updates)

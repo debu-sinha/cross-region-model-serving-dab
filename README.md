@@ -273,9 +273,9 @@ Creates a sample model with feature table for testing. **Skip this if you're sha
 ### Task 2: source_share_setup
 
 Runs in the source workspace:
-- Detects feature table dependencies from your model
+- Detects feature table and function (UDF) dependencies from your model
 - Creates a Delta Share
-- Adds model and feature tables to the share
+- Adds model, feature tables, and functions to the share
 - Creates or configures the recipient
 
 ### Task 3: target_registration_setup
@@ -437,6 +437,20 @@ cross-region-model-serving/
 └── README.md                   # This file
 ```
 
+## What Gets Shared Automatically
+
+When you share a model, this tool detects and shares all its dependencies:
+
+| Dependency Type | Auto-Detected | Auto-Shared | Notes |
+|---|---|---|---|
+| Feature tables (offline) | Yes | Yes | Added to Delta Share as TABLE objects |
+| Python UDFs (functions) | Yes | Yes | Added to Delta Share as FUNCTION objects (D2D only) |
+| Online tables (Lakebase) | N/A | N/A | Not sharable -- recreated on target from shared offline tables |
+| Connections / credentials | Detected but not shared | No | Must be manually recreated on target workspace |
+| FeatureSpecs | Not yet | Not yet | Planned for future release |
+
+**Important**: Delta Sharing does not automatically include dependencies when you add a model to a share. This tool handles that for you by reading `model_version_dependencies` and adding each table and function to the share explicitly.
+
 ## Known Limitations
 
 These are product-level limitations in Databricks, not limitations of this DAB:
@@ -444,6 +458,10 @@ These are product-level limitations in Databricks, not limitations of this DAB:
 - **Online tables require writable catalog**: Online tables cannot be created in shared (read-only) catalogs. This DAB creates them in a separate writable catalog (`online_table_target_catalog`).
 
 - **Snapshot sync only for shared tables**: Delta Shared feature tables can only use Snapshot sync mode for synced tables (Lakebase). Triggered and Continuous modes are not available for shared tables, meaning changes to offline feature tables are not immediately available at the target.
+
+- **Feature lookup resolution is table-ID-based**: The serving endpoint resolves feature lookups using internal Unity Catalog table IDs, not catalog names. When you create online tables from shared feature tables using `publish_table()`, the `source_table_id` is set correctly, and the serving endpoint matches it automatically. No model re-logging is needed. However, if you drop and recreate a source feature table (giving it a new table ID), the online table link breaks and you must re-publish.
+
+- **D2D sharing required for models**: Models, Python UDFs, and FeatureSpecs can only be shared via Databricks-to-Databricks (D2D) sharing. Open sharing (token-based) does not support these object types.
 
 - **Multiple shares of same model**: If the same model is shared via multiple Delta Shares to the same recipient workspace, only the most recently created share is recognized. Avoid sharing the same model through multiple shares to the same recipient.
 

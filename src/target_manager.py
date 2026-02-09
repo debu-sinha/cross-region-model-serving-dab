@@ -299,12 +299,13 @@ class TargetManager:
                     return False
 
     def _discover_model(self, target_catalog):
-        """Phase 2: Find model and its feature table dependencies in the shared catalog."""
+        """Phase 2: Find model and its dependencies (tables, functions) in the shared catalog."""
         logger.info(f"Searching for models in catalog '{target_catalog}'...")
 
         found_model_name = None
         found_model_version = None
         feature_tables = []
+        functions = []
 
         try:
             schemas = list(self.w.schemas.list(catalog_name=target_catalog))
@@ -331,7 +332,7 @@ class TargetManager:
                                 found_model_version = str(latest.version)
                                 logger.info(f"    Latest version: {found_model_version}")
 
-                                # Extract feature table dependencies
+                                # Extract all dependencies
                                 mv = self.w.model_versions.get(
                                     full_name=model.full_name,
                                     version=found_model_version
@@ -343,6 +344,11 @@ class TargetManager:
                                             if ft_name not in feature_tables:
                                                 feature_tables.append(ft_name)
                                                 logger.info(f"    Feature dependency: {ft_name}")
+                                        if dep.function and dep.function.function_full_name:
+                                            fn_name = dep.function.function_full_name
+                                            if fn_name not in functions:
+                                                functions.append(fn_name)
+                                                logger.info(f"    Function dependency: {fn_name}")
                             else:
                                 found_model_version = "1"
                                 logger.warning("    No versions found, defaulting to version 1")
@@ -364,7 +370,8 @@ class TargetManager:
             return {
                 "model_name": found_model_name,
                 "version": found_model_version,
-                "feature_tables": feature_tables
+                "feature_tables": feature_tables,
+                "functions": functions,
             }
         return None
 

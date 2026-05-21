@@ -6,6 +6,13 @@ Share ML models across Databricks workspaces using Delta Sharing, with automatic
 > All three pipeline tasks (`demo_setup`, `source_share_setup`,
 > `target_registration_setup`) pass in same-metastore mode with
 > `deploy_serving=false`, `create_online_table=false`.
+>
+> **Known limitation:** the online-tables path (`create_online_table=true`)
+> needs `databricks-feature-engineering>=0.13.0` on the cluster for the
+> `get_online_store` API. DBR 15.4 ML LTS ships an older version, and
+> pinning the newer version in the bundle wheel conflicts with bundled
+> DBR libraries. If you need online tables, install the newer FE package
+> as a cluster library separately, or run on a DBR that ships FE 0.13+.
 
 ## If you are deploying to non-Databricks infra
 

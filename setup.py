@@ -38,6 +38,12 @@ setup(
         # break DBR-bundled libraries that still import google.protobuf.service
         "protobuf>=4.21,<5.0",
         "mcp>=1.0.0",
+        # NOTE: databricks-feature-engineering>=0.13 (which exposes
+        # get_online_store / online_stores APIs) is intentionally NOT pinned
+        # here because forcing it as a wheel install dependency conflicts
+        # with DBR 15.4 ML LTS bundled libraries. If you need
+        # create_online_table=true, install the newer FE package as a cluster
+        # library separately, or run on a DBR that ships FE >=0.13.
     ],
     extras_require={
         # Install with pip install -e ".[cluster]" when running on a Databricks cluster

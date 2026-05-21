@@ -33,7 +33,7 @@ setup(
     # imports heavy packages like mlflow and databricks-feature-engineering
     # at runtime inside Databricks -- they don't need to be installed locally.
     install_requires=[
-        "databricks-sdk>=0.20.0",
+        "databricks-sdk>=0.50.0",
         "mcp>=1.0.0",
     ],
     extras_require={

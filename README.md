@@ -2,6 +2,27 @@
 
 Share ML models across Databricks workspaces using Delta Sharing, with automatic online feature table synchronization and serving endpoint deployment.
 
+> **Verified:** 2026-05-21 end-to-end on Databricks Runtime 15.4 LTS ML.
+> All three pipeline tasks (`demo_setup`, `source_share_setup`,
+> `target_registration_setup`) pass in same-metastore mode with
+> `deploy_serving=false`, `create_online_table=false`.
+
+## If you are deploying to non-Databricks infra
+
+The terminal step optionally creates a Databricks Model Serving endpoint.
+If your inference runs on Kubernetes or any non-Databricks service:
+
+- Set `deploy_serving=false` in the bundle variables.
+- Replace the endpoint-deploy task in your fork with whatever you use to
+  signal a new deploy (a webhook to your CI, a GitHub Action trigger, etc).
+- The Delta Share + recipient + catalog-mount portion of the pipeline still
+  applies as the model-replication primitive.
+
+For multi-region fan-out (one source workspace, many regional targets),
+wrap this bundle in a parent orchestrator that calls it once per target
+with that region's host/token credentials. GitHub Actions, a Databricks
+Workflow with `for_each`, or any external orchestrator all work.
+
 ## What This Does
 
 This tool automates sharing an ML model from one Databricks workspace to another:

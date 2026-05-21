@@ -34,6 +34,9 @@ setup(
     # at runtime inside Databricks -- they don't need to be installed locally.
     install_requires=[
         "databricks-sdk>=0.50.0",
+        # Pin protobuf <5 so the transitive bump from databricks-sdk doesn't
+        # break DBR-bundled libraries that still import google.protobuf.service
+        "protobuf>=4.21,<5.0",
         "mcp>=1.0.0",
     ],
     extras_require={

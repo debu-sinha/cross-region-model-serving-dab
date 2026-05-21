@@ -10,14 +10,14 @@ logger = setup_logger(__name__)
 class SourceManager:
     """
     Manages sharing of ML models and their feature table dependencies via Delta Sharing.
-    
+
     This class handles:
     1. Dynamic recipient creation using target workspace credentials
     2. Discovery of feature table dependencies from model metadata
     3. Creating/updating Delta Shares with models and feature tables
     4. Granting access to recipients
     """
-    
+
     def __init__(self):
         self.w = WorkspaceClient()
         self.fe = FeatureEngineeringClient()
@@ -37,7 +37,8 @@ class SourceManager:
 
         # Check if it's a secret reference
         import re
-        match = re.match(r'\{\{secrets/([^/]+)/([^}]+)\}\}', value)
+
+        match = re.match(r"\{\{secrets/([^/]+)/([^}]+)\}\}", value)
         if not match:
             return value
 
@@ -47,17 +48,28 @@ class SourceManager:
         try:
             # Try to get dbutils (only available on Databricks clusters)
             from pyspark.sql import SparkSession
+
             spark = SparkSession.builder.getOrCreate()
             dbutils = spark._jvm.com.databricks.dbutils_v1.DBUtilsHolder.dbutils()
             secret_value = dbutils.secrets().get(scope, key)
             logger.info(f"Resolved secret from scope '{scope}', key '{key}'")
             return secret_value
         except Exception as e:
-            logger.warning(f"Could not resolve secret {{{{secrets/{scope}/{key}}}}}: {e}")
+            logger.warning(
+                f"Could not resolve secret {{{{secrets/{scope}/{key}}}}}: {e}"
+            )
             logger.warning("Secret resolution requires running on a Databricks cluster")
             return value
 
-    def run(self, model_name, share_name, recipient_name, target_host=None, target_token=None, create_recipient=True):
+    def run(
+        self,
+        model_name,
+        share_name,
+        recipient_name,
+        target_host=None,
+        target_token=None,
+        create_recipient=True,
+    ):
         """
         Set up Delta Sharing for a model and its dependencies.
 
@@ -79,16 +91,22 @@ class SourceManager:
         # The actual recipient name may differ (e.g., 'self' for same-metastore sharing)
         actual_recipient_name = recipient_name
         if target_host and target_token:
-            actual_recipient_name = self._setup_databricks_recipient(recipient_name, target_host, target_token, create_recipient)
+            actual_recipient_name = self._setup_databricks_recipient(
+                recipient_name, target_host, target_token, create_recipient
+            )
             if actual_recipient_name != recipient_name:
-                logger.info(f"Using recipient '{actual_recipient_name}' instead of requested '{recipient_name}'")
+                logger.info(
+                    f"Using recipient '{actual_recipient_name}' instead of requested '{recipient_name}'"
+                )
         else:
             # Ensure recipient exists (or create if allowed)
-            self._ensure_recipient_exists(recipient_name, create_if_missing=create_recipient)
+            self._ensure_recipient_exists(
+                recipient_name, create_if_missing=create_recipient
+            )
 
         # 1. Get Model Details and Dependencies
         logger.info(f"Inspecting model {model_name} for feature dependencies...")
-        
+
         # Get latest model version
         latest_version = self._get_latest_model_version(model_name)
         logger.info(f"Found latest version: {latest_version.version}")
@@ -105,7 +123,9 @@ class SourceManager:
         self._add_objects_to_share(share_name, model_name, feature_tables, functions)
 
         # 4. Grant Access to Recipient
-        self._grant_recipient_access(share_name, actual_recipient_name, target_host, create_recipient)
+        self._grant_recipient_access(
+            share_name, actual_recipient_name, target_host, create_recipient
+        )
 
         logger.info("Source setup complete.")
 
@@ -118,7 +138,9 @@ class SourceManager:
             "functions": functions,
         }
 
-    def _setup_databricks_recipient(self, recipient_name, target_host, target_token, create_if_missing=True):
+    def _setup_databricks_recipient(
+        self, recipient_name, target_host, target_token, create_if_missing=True
+    ):
         """
         Create or update a Databricks-to-Databricks recipient.
 
@@ -142,12 +164,18 @@ class SourceManager:
                 target_global_id = target_metastore.global_metastore_id
                 logger.info(f"Retrieved Target Global Metastore ID: {target_global_id}")
             except TimeoutError as te:
-                logger.error(f"Timeout while fetching metastore from target workspace: {te}")
-                logger.error(f"This usually means the target workspace URL is incorrect or unreachable: {target_host}")
+                logger.error(
+                    f"Timeout while fetching metastore from target workspace: {te}"
+                )
+                logger.error(
+                    f"This usually means the target workspace URL is incorrect or unreachable: {target_host}"
+                )
                 raise
             except Exception as me:
                 logger.error(f"Error fetching metastore from target workspace: {me}")
-                logger.error("Check if the token has permissions to access metastore API")
+                logger.error(
+                    "Check if the token has permissions to access metastore API"
+                )
                 raise
 
             # Check if source and target are the same metastore
@@ -157,14 +185,22 @@ class SourceManager:
 
             if source_global_id == target_global_id:
                 # Same metastore - use the built-in 'self' recipient
-                logger.info("Source and target are the same metastore. Using built-in 'self' recipient.")
-                logger.info(f"Note: Requested recipient '{recipient_name}' will be ignored in favor of 'self'.")
+                logger.info(
+                    "Source and target are the same metastore. Using built-in 'self' recipient."
+                )
+                logger.info(
+                    f"Note: Requested recipient '{recipient_name}' will be ignored in favor of 'self'."
+                )
                 # Return 'self' to indicate we should use the self recipient
                 return "self"
             else:
                 # Different metastores - create/update the D2D recipient
-                logger.info("Source and target are different metastores. Creating D2D recipient...")
-                self._ensure_recipient_exists(recipient_name, target_global_id, create_if_missing)
+                logger.info(
+                    "Source and target are different metastores. Creating D2D recipient..."
+                )
+                self._ensure_recipient_exists(
+                    recipient_name, target_global_id, create_if_missing
+                )
                 return recipient_name
 
         except Exception as e:
@@ -172,62 +208,84 @@ class SourceManager:
             logger.error(f"Exception type: {type(e).__name__}")
             raise
 
-    def _ensure_recipient_exists(self, recipient_name, global_metastore_id=None, create_if_missing=True):
+    def _ensure_recipient_exists(
+        self, recipient_name, global_metastore_id=None, create_if_missing=True
+    ):
         """Ensure recipient exists, create if not."""
         try:
             logger.info(f"Checking if recipient {recipient_name} exists...")
             existing = self.w.recipients.get(recipient_name)
-            
+
             if global_metastore_id:
                 # Check if existing recipient is D2D compatible
                 if existing.authentication_type == sharing.AuthenticationType.TOKEN:
-                    logger.warning(f"Recipient {recipient_name} exists but is TOKEN-based, not DATABRICKS.")
-                    logger.warning("Will use existing recipient as-is. D2D sharing may not work correctly.")
-                    logger.warning(f"Consider manually deleting recipient '{recipient_name}' if you want to switch to D2D.")
+                    logger.warning(
+                        f"Recipient {recipient_name} exists but is TOKEN-based, not DATABRICKS."
+                    )
+                    logger.warning(
+                        "Will use existing recipient as-is. D2D sharing may not work correctly."
+                    )
+                    logger.warning(
+                        f"Consider manually deleting recipient '{recipient_name}' if you want to switch to D2D."
+                    )
                 else:
-                    logger.info(f"Recipient {recipient_name} exists with DATABRICKS auth. Updating metastore ID...")
+                    logger.info(
+                        f"Recipient {recipient_name} exists with DATABRICKS auth. Updating metastore ID..."
+                    )
                     self.w.recipients.update(
                         name=recipient_name,
                         new_name=recipient_name,  # Keep same name
                         comment=f"Updated with metastore ID: {global_metastore_id}",
-                        data_recipient_global_metastore_id=global_metastore_id
+                        data_recipient_global_metastore_id=global_metastore_id,
                     )
                     logger.info(f"Updated recipient {recipient_name}")
             else:
                 logger.info(f"Recipient {recipient_name} already exists.")
-                
+
         except Exception as re:
             error_str = str(re).lower()
-            if "does not exist" in error_str or "not_found" in error_str or "notfound" in error_str:
+            if (
+                "does not exist" in error_str
+                or "not_found" in error_str
+                or "notfound" in error_str
+            ):
                 if not create_if_missing:
-                    raise ValueError(f"Recipient {recipient_name} does not exist and create_recipient is False")
-                
+                    raise ValueError(
+                        f"Recipient {recipient_name} does not exist and create_recipient is False"
+                    )
+
                 logger.info(f"Creating new recipient {recipient_name}...")
-                
+
                 if global_metastore_id:
                     # Databricks-to-Databricks sharing
                     self.w.recipients.create(
                         name=recipient_name,
                         authentication_type=sharing.AuthenticationType.DATABRICKS,
-                        data_recipient_global_metastore_id=global_metastore_id
+                        data_recipient_global_metastore_id=global_metastore_id,
                     )
                 else:
                     # Token-based sharing (for external recipients)
                     rec = self.w.recipients.create(
                         name=recipient_name,
-                        authentication_type=sharing.AuthenticationType.TOKEN
+                        authentication_type=sharing.AuthenticationType.TOKEN,
                     )
                     logger.info(f"Created recipient {recipient_name}")
-                    
+
                     if rec.tokens:
                         activation_link = rec.tokens[0].activation_url
-                        logger.warning(f"\n{'='*80}")
-                        logger.warning(f"ACTION REQUIRED: Recipient {recipient_name} created with TOKEN authentication.")
-                        logger.warning("You MUST manually activate this recipient to get the sharing token.")
+                        logger.warning(f"\n{'=' * 80}")
+                        logger.warning(
+                            f"ACTION REQUIRED: Recipient {recipient_name} created with TOKEN authentication."
+                        )
+                        logger.warning(
+                            "You MUST manually activate this recipient to get the sharing token."
+                        )
                         logger.warning(f"Activation Link: {activation_link}")
-                        logger.warning(f"{'='*80}\n")
+                        logger.warning(f"{'=' * 80}\n")
                     else:
-                        logger.warning(f"Could not retrieve activation link for recipient {recipient_name}")
+                        logger.warning(
+                            f"Could not retrieve activation link for recipient {recipient_name}"
+                        )
             else:
                 logger.error(f"Error with recipient operations: {re}")
                 raise
@@ -237,7 +295,7 @@ class SourceManager:
         versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
         if not versions:
             raise ValueError(f"No versions found for model {model_name}")
-        
+
         latest_version = sorted(versions, key=lambda x: int(x.version), reverse=True)[0]
         return latest_version
 
@@ -267,20 +325,24 @@ class SourceManager:
                 logger.warning(f"Could not find model version for run_id {run_id}")
                 return result
 
-            logger.info(f"Fetching dependencies for {model_name} version {target_version}...")
-
-            mv = self.w.model_versions.get(
-                full_name=model_name,
-                version=target_version
+            logger.info(
+                f"Fetching dependencies for {model_name} version {target_version}..."
             )
 
-            if mv.model_version_dependencies and mv.model_version_dependencies.dependencies:
+            mv = self.w.model_versions.get(full_name=model_name, version=target_version)
+
+            if (
+                mv.model_version_dependencies
+                and mv.model_version_dependencies.dependencies
+            ):
                 for dep in mv.model_version_dependencies.dependencies:
                     if dep.table and dep.table.table_full_name:
                         table_name = dep.table.table_full_name
                         if table_name not in result["feature_tables"]:
                             result["feature_tables"].append(table_name)
-                            logger.info(f"Detected feature table dependency: {table_name}")
+                            logger.info(
+                                f"Detected feature table dependency: {table_name}"
+                            )
                     if dep.function and dep.function.function_full_name:
                         func_name = dep.function.function_full_name
                         if func_name not in result["functions"]:
@@ -295,6 +357,7 @@ class SourceManager:
         except Exception as e:
             logger.warning(f"SDK dependency extraction failed: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
 
         return result
@@ -313,11 +376,15 @@ class SourceManager:
             else:
                 raise
 
-    def _add_objects_to_share(self, share_name, model_name, feature_tables, functions=None):
+    def _add_objects_to_share(
+        self, share_name, model_name, feature_tables, functions=None
+    ):
         """Add model, feature tables, and functions to the share."""
         functions = functions or []
-        logger.info(f"Adding model, {len(feature_tables)} table(s), and {len(functions)} function(s) to share...")
-        
+        logger.info(
+            f"Adding model, {len(feature_tables)} table(s), and {len(functions)} function(s) to share..."
+        )
+
         # Get current share contents to avoid duplicate errors
         try:
             current_share = self.w.shares.get(share_name)
@@ -327,34 +394,38 @@ class SourceManager:
                     existing_objects.add(obj.name)
         except Exception:
             existing_objects = set()
-        
+
         updates = []
-        
+
         # Add Model (if not already in share)
         if model_name not in existing_objects:
-            updates.append(sharing.SharedDataObjectUpdate(
-                action=sharing.SharedDataObjectUpdateAction.ADD,
-                data_object=sharing.SharedDataObject(
-                    name=model_name,
-                    data_object_type=sharing.SharedDataObjectDataObjectType.MODEL
+            updates.append(
+                sharing.SharedDataObjectUpdate(
+                    action=sharing.SharedDataObjectUpdateAction.ADD,
+                    data_object=sharing.SharedDataObject(
+                        name=model_name,
+                        data_object_type=sharing.SharedDataObjectDataObjectType.MODEL,
+                    ),
                 )
-            ))
+            )
             logger.info(f"Will add model: {model_name}")
         else:
             logger.info(f"Model {model_name} already in share")
-        
+
         # Add Feature Tables (if not already in share)
         for ft in feature_tables:
             if ft not in existing_objects:
-                updates.append(sharing.SharedDataObjectUpdate(
-                    action=sharing.SharedDataObjectUpdateAction.ADD,
-                    data_object=sharing.SharedDataObject(
-                        name=ft,
-                        data_object_type=sharing.SharedDataObjectDataObjectType.TABLE,
-                        # Enable history sharing for time-travel queries
-                        history_data_sharing_status=sharing.SharedDataObjectHistoryDataSharingStatus.ENABLED
+                updates.append(
+                    sharing.SharedDataObjectUpdate(
+                        action=sharing.SharedDataObjectUpdateAction.ADD,
+                        data_object=sharing.SharedDataObject(
+                            name=ft,
+                            data_object_type=sharing.SharedDataObjectDataObjectType.TABLE,
+                            # Enable history sharing for time-travel queries
+                            history_data_sharing_status=sharing.SharedDataObjectHistoryDataSharingStatus.ENABLED,
+                        ),
                     )
-                ))
+                )
                 logger.info(f"Will add feature table: {ft}")
             else:
                 logger.info(f"Feature table {ft} already in share")
@@ -362,13 +433,15 @@ class SourceManager:
         # Add Functions / UDFs (if not already in share)
         for fn in functions:
             if fn not in existing_objects:
-                updates.append(sharing.SharedDataObjectUpdate(
-                    action=sharing.SharedDataObjectUpdateAction.ADD,
-                    data_object=sharing.SharedDataObject(
-                        name=fn,
-                        data_object_type=sharing.SharedDataObjectDataObjectType.FUNCTION,
+                updates.append(
+                    sharing.SharedDataObjectUpdate(
+                        action=sharing.SharedDataObjectUpdateAction.ADD,
+                        data_object=sharing.SharedDataObject(
+                            name=fn,
+                            data_object_type=sharing.SharedDataObjectDataObjectType.FUNCTION,
+                        ),
                     )
-                ))
+                )
                 logger.info(f"Will add function: {fn}")
             else:
                 logger.info(f"Function {fn} already in share")
@@ -387,32 +460,44 @@ class SourceManager:
         else:
             logger.info("No new objects to add to share")
 
-    def _grant_recipient_access(self, share_name, recipient_name, target_host=None, create_if_missing=True):
+    def _grant_recipient_access(
+        self, share_name, recipient_name, target_host=None, create_if_missing=True
+    ):
         """Grant SELECT access on share to recipient."""
         logger.info(f"Granting access to recipient: {recipient_name}")
-        
-        # Ensure recipient exists
-        try:
-            self.w.recipients.get(recipient_name)
-        except Exception as e:
-            error_str = str(e).lower()
-            if "not found" in error_str or "does not exist" in error_str:
-                if not create_if_missing:
-                    raise ValueError(f"Recipient {recipient_name} does not exist and create_recipient is False")
 
-                if not target_host:
-                    logger.info(f"Recipient {recipient_name} does not exist. Creating TOKEN-based recipient...")
-                    self.w.recipients.create(
-                        name=recipient_name,
-                        authentication_type=sharing.AuthenticationType.TOKEN
-                    )
-                    logger.info(f"Created TOKEN-based recipient {recipient_name}")
+        # The built-in 'self' recipient is implicit in UC for same-metastore
+        # sharing. It does not appear in the recipients table and cannot be
+        # created via the API. Skip the existence check and let the permissions
+        # update below resolve it.
+        if recipient_name != "self":
+            try:
+                self.w.recipients.get(recipient_name)
+            except Exception as e:
+                error_str = str(e).lower()
+                if "not found" in error_str or "does not exist" in error_str:
+                    if not create_if_missing:
+                        raise ValueError(
+                            f"Recipient {recipient_name} does not exist and create_recipient is False"
+                        )
+
+                    if not target_host:
+                        logger.info(
+                            f"Recipient {recipient_name} does not exist. Creating TOKEN-based recipient..."
+                        )
+                        self.w.recipients.create(
+                            name=recipient_name,
+                            authentication_type=sharing.AuthenticationType.TOKEN,
+                        )
+                        logger.info(f"Created TOKEN-based recipient {recipient_name}")
+                    else:
+                        logger.error(
+                            f"Recipient {recipient_name} should have been created earlier."
+                        )
+                        raise
                 else:
-                    logger.error(f"Recipient {recipient_name} should have been created earlier.")
                     raise
-            else:
-                raise
-        
+
         # Grant SELECT privilege on share to recipient
         # Use the correct API: shares.update_permissions or grants API
         try:
@@ -421,74 +506,92 @@ class SourceManager:
                 name=share_name,
                 changes=[
                     catalog.PermissionsChange(
-                        principal=recipient_name,
-                        add=[catalog.Privilege.SELECT]
+                        principal=recipient_name, add=[catalog.Privilege.SELECT]
                     )
-                ]
+                ],
             )
-            logger.info(f"Granted SELECT on share {share_name} to recipient {recipient_name}")
+            logger.info(
+                f"Granted SELECT on share {share_name} to recipient {recipient_name}"
+            )
         except AttributeError:
             # Method 2: Fallback to grants API if update_permissions not available
             try:
-                from databricks.sdk.service.catalog import SecurableType, PermissionsChange, Privilege
+                from databricks.sdk.service.catalog import (
+                    SecurableType,
+                    PermissionsChange,
+                    Privilege,
+                )
+
                 self.w.grants.update(
                     full_name=share_name,
                     securable_type=SecurableType.SHARE,
                     changes=[
                         PermissionsChange(
-                            principal=recipient_name,
-                            add=[Privilege.SELECT]
+                            principal=recipient_name, add=[Privilege.SELECT]
                         )
-                    ]
+                    ],
                 )
-                logger.info(f"Granted SELECT on share {share_name} to recipient {recipient_name}")
+                logger.info(
+                    f"Granted SELECT on share {share_name} to recipient {recipient_name}"
+                )
             except Exception as e2:
                 logger.warning(f"Could not grant via grants API: {e2}")
                 # Try SQL as last resort
                 try:
                     from pyspark.sql import SparkSession
+
                     spark = SparkSession.builder.getOrCreate()
-                    spark.sql(f"GRANT SELECT ON SHARE `{share_name}` TO RECIPIENT `{recipient_name}`")
+                    spark.sql(
+                        f"GRANT SELECT ON SHARE `{share_name}` TO RECIPIENT `{recipient_name}`"
+                    )
                     logger.info("Granted SELECT via SQL")
                 except Exception as e3:
                     logger.warning(f"Could not grant via SQL: {e3}")
         except Exception as e:
             error_str = str(e).lower()
             if "already" in error_str or "exists" in error_str:
-                logger.info(f"Recipient {recipient_name} already has access to share {share_name}")
+                logger.info(
+                    f"Recipient {recipient_name} already has access to share {share_name}"
+                )
             else:
                 logger.warning(f"Failed to grant permissions: {e}")
 
 
 def main():
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Set up Delta Sharing for a model")
-    parser.add_argument("--model_name", required=True, help="Full model name (catalog.schema.model)")
-    parser.add_argument("--share_name", required=True, help="Name of the share to create/update")
+    parser.add_argument(
+        "--model_name", required=True, help="Full model name (catalog.schema.model)"
+    )
+    parser.add_argument(
+        "--share_name", required=True, help="Name of the share to create/update"
+    )
     parser.add_argument("--recipient_name", required=True, help="Name of the recipient")
     parser.add_argument("--target_host", help="Target workspace URL (for D2D sharing)")
-    parser.add_argument("--target_token", help="Target workspace token (for D2D sharing)")
-    
+    parser.add_argument(
+        "--target_token", help="Target workspace token (for D2D sharing)"
+    )
+
     args = parser.parse_args()
-    
+
     manager = SourceManager()
     result = manager.run(
         model_name=args.model_name,
         share_name=args.share_name,
         recipient_name=args.recipient_name,
         target_host=args.target_host,
-        target_token=args.target_token
+        target_token=args.target_token,
     )
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("SHARING SETUP COMPLETE")
-    print("="*60)
+    print("=" * 60)
     print(f"Model: {result['model']} (version {result['version']})")
     print(f"Share: {result['share']}")
     print(f"Recipient: {result['recipient']}")
     print(f"Feature Tables: {result['feature_tables']}")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

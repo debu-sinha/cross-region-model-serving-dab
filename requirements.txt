@@ -1,3 +1,4 @@
 # Base dependencies (MCP server + SDK)
 databricks-sdk>=0.50.0
+protobuf>=4.21,<5.0
 mcp>=1.0.0

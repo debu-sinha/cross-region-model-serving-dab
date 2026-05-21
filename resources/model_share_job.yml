@@ -21,7 +21,9 @@ resources:
               - "--table"
               - "demo_features"
               - "--create_online_table"
-              - "true"
+              - "${var.create_online_table}"
+              - "--deploy_serving"
+              - "${var.deploy_serving}"
           libraries:
             - whl: ../dist/*.whl
 
